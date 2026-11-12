@@ -5,6 +5,7 @@
 #include "app.h"
 #include "fmt.h"
 #include "hdr.h"
+#include "save.h"
 #include "sim.h"
 #include "screen.h"
 #include "tiles.h"
@@ -84,6 +85,22 @@ static void draw_footer(void) {
     ui_text(1, 16, editing ? "A:OK  B:CANCEL" : "A:EDIT  B:BACK", PAL_DIM);
 }
 
+void settings_clamp(void) {
+    uint8_t i;
+    for (i = 0; i < ITEM_COUNT; i++) {
+        int16_t *v = items[i].val;
+        if (!v) {
+            continue;
+        }
+        if (*v < items[i].min) {
+            *v = items[i].min;
+        }
+        if (*v > items[i].max) {
+            *v = items[i].max;
+        }
+    }
+}
+
 void settings_enter(void) {
     uint8_t i;
     editing = 0;
@@ -111,6 +128,9 @@ static void edit_input(uint8_t pressed) {
         v = (int16_t)(v - it->step);
     } else if (pressed & J_A) {
         editing = 0;
+        if (v != saved) {
+            save_store(&app.set);
+        }
     } else if (pressed & J_B) {
         v = saved;
         editing = 0;

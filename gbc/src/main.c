@@ -3,7 +3,9 @@
 
 #include "app.h"
 #include "input.h"
+#include "save.h"
 #include "screen.h"
+#include "settings.h"
 #include "tiles.h"
 
 #define C_BG RGB(2, 3, 4)
@@ -44,6 +46,9 @@ void main(void) {
     }
     tiles_load();
     app_init();
+    if (save_load(&app.set)) {
+        settings_clamp();
+    }
     screen_go(SCR_DASH);
     SHOW_BKG;
     DISPLAY_ON;

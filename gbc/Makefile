@@ -12,7 +12,7 @@ src/font.c: ../tools/mkfont.py
 
 $(ROM): $(SRC) src/font.c $(wildcard src/*.h)
 	@mkdir -p build
-	$(LCC) -Wm-yc -Wm-yn"MEGABOY" -o $@ $(SRC)
+	$(LCC) -Wm-yc -Wm-yt0x1B -Wm-ya1 -Wm-yn"MEGABOY" -o $@ $(SRC)
 
 test: src/font.c
 	@mkdir -p build
