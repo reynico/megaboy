@@ -11,6 +11,7 @@ typedef struct {
 enum {
     SCR_DASH,
     SCR_BOOST,
+    SCR_LOG,
     SCR_COUNT
 };
 
