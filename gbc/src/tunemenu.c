@@ -1,4 +1,4 @@
-#include "tune.h"
+#include "tunemenu.h"
 
 #include <gb/gb.h>
 
@@ -7,7 +7,7 @@
 #include "tiles.h"
 #include "ui.h"
 
-void tune_enter(void) {
+void tunemenu_enter(void) {
     ui_clear();
     hdr_draw("TUNE");
     ui_text(1, 3, "BOOST TGT", PAL_DIM);
@@ -25,11 +25,11 @@ void tune_enter(void) {
     ui_text(1, 16, "B:BACK", PAL_DIM);
 }
 
-void tune_tick(void) {
+void tunemenu_tick(void) {
     hdr_tick();
 }
 
-void tune_input(uint8_t pressed) {
+void tunemenu_input(uint8_t pressed) {
     if (pressed & J_B) {
         screen_go(SCR_MENU);
     }
