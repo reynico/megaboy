@@ -8,6 +8,7 @@
 #include "logpage.h"
 #include "menu.h"
 #include "settings.h"
+#include "tune.h"
 #include "warn.h"
 
 static const screen_t screens[SCR_COUNT] = {
@@ -17,6 +18,7 @@ static const screen_t screens[SCR_COUNT] = {
     {menu_enter, menu_tick, menu_input},
     {settings_enter, settings_tick, settings_input},
     {warn_enter, warn_tick, warn_input},
+    {tune_enter, tune_tick, tune_input},
 };
 
 static const uint8_t pages[] = {SCR_DASH, SCR_BOOST, SCR_LOG};

@@ -15,6 +15,7 @@ enum {
     SCR_MENU,
     SCR_SETTINGS,
     SCR_WARN,
+    SCR_TUNE,
     SCR_COUNT
 };
 

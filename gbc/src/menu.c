@@ -15,6 +15,7 @@ typedef struct {
 static const item_t items[] = {
     {"DATALOG", SCR_LOG},
     {"SETTINGS", SCR_SETTINGS},
+    {"TUNE", SCR_TUNE},
 };
 #define ITEM_COUNT (sizeof items / sizeof items[0])
 #define ITEM_Y0 3u
