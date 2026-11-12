@@ -7,6 +7,7 @@
 #include "hdr.h"
 #include "link.h"
 #include "screen.h"
+#include "sound.h"
 #include "tiles.h"
 #include "ui.h"
 
@@ -23,6 +24,7 @@ void about_enter(void) {
     ui_text(1, 14, "REYNICO/MEGABOY", PAL_BLUE);
     ui_divider(15);
     ui_text(1, 16, "B:BACK", PAL_DIM);
+    sound_music(1);
 }
 
 static const char *data_text(void) {
@@ -67,6 +69,7 @@ void about_tick(void) {
 
 void about_input(uint8_t pressed) {
     if (pressed & J_B) {
+        sound_music(0);
         screen_go(SCR_MENU);
     }
 }
