@@ -3,6 +3,7 @@
 
 #include "app.h"
 #include "input.h"
+#include "linkrx.h"
 #include "save.h"
 #include "screen.h"
 #include "settings.h"
@@ -49,12 +50,14 @@ void main(void) {
     if (save_load(&app.set)) {
         settings_clamp();
     }
+    linkrx_init();
     screen_go(SCR_DASH);
     SHOW_BKG;
     DISPLAY_ON;
 
     while (1) {
         wait_vbl_done();
+        linkrx_poll();
         screen_input(input_poll());
 
         if (++sec_frames >= FRAMES_PER_SECOND) {

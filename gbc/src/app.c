@@ -69,6 +69,28 @@ void app_init(void) {
     app.log_s = 0;
     app.log_num = 41;
     app.log_bytes = 0;
+    app.src = SRC_SIM;
+    app.link_age = 0;
+    app.rt_age = 0;
+    app.ecu = 0;
+    app.ecu_state = 0;
+    app.demo = 0;
+}
+
+uint8_t app_ecu_missing(void) {
+    return app.src == SRC_LINK && app.rt_age >= RT_STALE_TICKS;
+}
+
+static void link_age_step(void) {
+    if (app.link_age < 255u) {
+        app.link_age++;
+    }
+    if (app.rt_age < 255u) {
+        app.rt_age++;
+    }
+    if (app.link_age >= LINK_LOST_TICKS) {
+        app.src = SRC_LOST;
+    }
 }
 
 void app_log_start(void) {
@@ -87,7 +109,11 @@ void app_log_stop(void) {
 
 void app_tick(void) {
     uint8_t running;
-    sim_step(&app.rt);
+    if (app.src == SRC_SIM) {
+        sim_step(&app.rt);
+    } else {
+        link_age_step();
+    }
     running = app.rt.rpm > 0u;
     if (app.set.auto_log && running && !was_running) {
         app_log_start();

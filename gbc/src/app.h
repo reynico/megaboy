@@ -22,9 +22,20 @@ typedef struct {
     uint16_t log_s;
     uint16_t log_num;
     uint32_t log_bytes;
+    uint8_t src;
+    uint8_t link_age;
+    uint8_t rt_age;
+    uint8_t ecu;
+    uint8_t ecu_state;
+    uint8_t demo;
 } app_t;
 
 #define LOG_BYTES_PER_S 3200u
+
+enum { SRC_SIM, SRC_LINK, SRC_LOST };
+
+#define LINK_LOST_TICKS 20u
+#define RT_STALE_TICKS 10u
 
 enum { W_NONE, W_CLT, W_LEAN, W_BOOST, W_COUNT };
 
@@ -38,3 +49,4 @@ uint8_t app_warning(void);
 void app_warn_ack(uint8_t id);
 void app_tick(void);
 void app_second(void);
+uint8_t app_ecu_missing(void);
