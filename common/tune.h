@@ -5,7 +5,10 @@
 #define TUNE_VE1 0u
 #define TUNE_ADV1 1u
 #define TUNE_AFR1 2u
-#define TUNE_COUNT 3u
+#define TUNE_LIMITS 3u
+#define TUNE_BCT 4u
+#define TUNE_BCD 5u
+#define TUNE_COUNT 6u
 
 #define TUNE_MAX_DELTA 10u
 
@@ -26,6 +29,7 @@ typedef struct {
     uint8_t map_off;
     uint8_t min;
     uint8_t max;
+    const uint8_t *offs;
 } tune_table_t;
 
 extern const tune_table_t tune_tables[TUNE_COUNT];
@@ -33,5 +37,6 @@ extern const tune_table_t tune_tables[TUNE_COUNT];
 const tune_table_t *tune_get(uint8_t id);
 uint8_t tune_cells(const tune_table_t *t);
 uint8_t tune_blob_len(const tune_table_t *t);
+uint8_t tune_cell_offset(const tune_table_t *t, uint8_t cell);
 uint8_t tune_blob_offset(const tune_table_t *t, uint8_t i);
 uint8_t tune_check_write(uint8_t id, uint8_t cell, uint8_t cur, uint8_t val);

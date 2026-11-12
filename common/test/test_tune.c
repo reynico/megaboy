@@ -38,6 +38,25 @@ static void test_layout(void) {
     }
 }
 
+static void test_new_tables(void) {
+    const tune_table_t *lim = tune_get(TUNE_LIMITS);
+    const tune_table_t *bct = tune_get(TUNE_BCT);
+    const tune_table_t *bcd = tune_get(TUNE_BCD);
+    CHECK(lim->page_cmd == 0 && bct->page_cmd == 7 && bcd->page_cmd == 7);
+    CHECK(tune_blob_len(lim) == 4);
+    CHECK(tune_cell_offset(lim, 0) == 2 && tune_cell_offset(lim, 1) == 6);
+    CHECK(tune_cell_offset(lim, 2) == 20 && tune_cell_offset(lim, 3) == 128);
+    CHECK(tune_blob_offset(lim, 3) == 128);
+    CHECK(tune_blob_len(bct) == 48 && tune_blob_len(bcd) == 48);
+    CHECK(tune_blob_offset(bct, 35) == 35 && tune_blob_offset(bct, 36) == 36 && tune_blob_offset(bct, 42) == 42);
+    CHECK(tune_blob_offset(bcd, 0) == 48 && tune_blob_offset(bcd, 35) == 83);
+    CHECK(tune_blob_offset(bcd, 36) == 84 && tune_blob_offset(bcd, 47) == 95);
+    CHECK(tune_check_write(TUNE_LIMITS, 4, 50, 51) == TUNE_E_CELL);
+    CHECK(tune_check_write(TUNE_LIMITS, 1, 70, 75) == TUNE_OK);
+    CHECK(tune_check_write(TUNE_LIMITS, 1, 85, 91) == TUNE_E_RANGE);
+    CHECK(tune_check_write(TUNE_BCD, 0, 240, 243) == TUNE_E_RANGE);
+}
+
 static void test_checks(void) {
     CHECK(tune_check_write(TUNE_COUNT, 0, 50, 51) == TUNE_E_TABLE);
     CHECK(tune_check_write(TUNE_VE1, 144, 50, 51) == TUNE_E_CELL);
@@ -54,6 +73,7 @@ static void test_checks(void) {
 
 int main(void) {
     test_layout();
+    test_new_tables();
     test_checks();
     if (fails) {
         fprintf(stderr, "%d failures\n", fails);
