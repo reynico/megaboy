@@ -7,3 +7,4 @@ build/
 projectCfg/
 CurrentTune.msq
 __pycache__/
+.venv/
