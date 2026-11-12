@@ -10,8 +10,9 @@
 #include "tiles.h"
 #include "ui.h"
 
-static const char *const names[TUNE_COUNT] = {"VE TABLE 1", "SPARK TABLE 1", "AFR TARGET 1"};
-#define ITEM_Y0 3u
+static const char *const names[TUNE_COUNT] = {"VE TABLE 1", "SPARK TABLE 1", "AFR TARGET 1", "REV LIMITS", "BOOST TARGET", "BOOST DUTY"};
+#define ITEM_Y0 2u
+#define NOTE_Y 14u
 
 static uint8_t sel;
 
@@ -28,9 +29,9 @@ static void draw_cursor(void) {
 
 static void draw_note(void) {
     if (can_tune()) {
-        ui_text(1, 11, "MS1 RAM, LIVE   ", PAL_GREEN);
+        ui_text(1, NOTE_Y, "MS1 RAM, LIVE   ", PAL_GREEN);
     } else {
-        ui_text(1, 11, "NEEDS MS1 + LINK", PAL_RED);
+        ui_text(1, NOTE_Y, "NEEDS MS1 + LINK", PAL_RED);
     }
 }
 

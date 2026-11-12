@@ -21,7 +21,10 @@
 
 enum { M_NAV, M_EDIT, M_EXIT, M_LEAVE };
 
-static const char *const titles[TUNE_COUNT] = {"VE1", "SPARK1", "AFR1"};
+static const char *const titles[TUNE_COUNT] = {"VE1", "SPARK1", "AFR1", "LIMITS", "BOOST TGT", "BOOST DUTY"};
+static const char *const limit_names[] = {"SOFT LIMIT", "HARD LIMIT", "LAUNCH", "FLAT SHIFT"};
+#define LIST_Y0 3u
+#define LIST_VAL_X 14u
 
 static uint8_t emode;
 static uint8_t cur_r;
@@ -40,7 +43,18 @@ static uint8_t cols(void) {
     return td.t->cols;
 }
 
+static uint8_t is_list(void) {
+    return td.t->offs != 0;
+}
+
+static uint8_t is_tps(void) {
+    return td.id == TUNE_BCT || td.id == TUNE_BCD;
+}
+
 static uint8_t cell_at(uint8_t r, uint8_t c) {
+    if (is_list()) {
+        return r;
+    }
     return (uint8_t)((rows() - 1u - r) * cols() + c);
 }
 
@@ -50,6 +64,11 @@ static uint8_t rpm_bin(uint8_t c) {
 
 static uint8_t map_bin(uint8_t r) {
     return td.blob[tune_cells(td.t) + cols() + (rows() - 1u - r)];
+}
+
+static uint16_t y_bin(uint8_t r) {
+    uint8_t raw = map_bin(r);
+    return is_tps() ? (uint16_t)(((uint16_t)raw * 392u + 500u) / 1000u) : raw;
 }
 
 static void fmt_cell(char *s, uint8_t raw) {
@@ -63,6 +82,10 @@ static void fmt_cell(char *s, uint8_t raw) {
         } else {
             fmt_x10(s, CELL_W, v, 0);
         }
+    } else if (td.id == TUNE_BCT) {
+        fmt_int(s, CELL_W, raw, 0);
+    } else if (td.id == TUNE_BCD) {
+        fmt_x10(s, CELL_W, (int16_t)(((int32_t)raw * 392 + 50) / 100), 0);
     } else {
         fmt_x10(s, CELL_W, (int16_t)(100 + ((int32_t)raw * 392 + 500) / 1000), 0);
     }
@@ -73,7 +96,7 @@ static uint8_t nearest(uint16_t want, uint8_t n, uint8_t is_rpm) {
     uint8_t best = 0;
     uint16_t best_d = 0xffffu;
     for (i = 0; i < n; i++) {
-        uint16_t b = is_rpm ? (uint16_t)(rpm_bin(i) * 100u) : map_bin(i);
+        uint16_t b = is_rpm ? (uint16_t)(rpm_bin(i) * 100u) : y_bin(i);
         uint16_t d = b > want ? b - want : want - b;
         if (d < best_d) {
             best_d = d;
@@ -86,12 +109,14 @@ static uint8_t nearest(uint16_t want, uint8_t n, uint8_t is_rpm) {
 static uint8_t update_live(void) {
     uint8_t r;
     uint8_t c;
-    if (app.src != SRC_LINK || app_ecu_missing()) {
+    int16_t y;
+    if (is_list() || app.src != SRC_LINK || app_ecu_missing()) {
         r = NONE;
         c = NONE;
     } else {
+        y = is_tps() ? app.rt.tps_x10 : app.rt.map_x10;
         c = nearest(app.rt.rpm, cols(), 1);
-        r = nearest((uint16_t)(app.rt.map_x10 < 0 ? 0 : app.rt.map_x10 / 10), rows(), 0);
+        r = nearest((uint16_t)(y < 0 ? 0 : y / 10), rows(), 0);
     }
     if (r == live_r && c == live_c) {
         return 0;
@@ -126,7 +151,7 @@ static void draw_grid(void) {
         }
     }
     for (r = 0; r < rows(); r++) {
-        fmt_int(s, 3, map_bin(r), 0);
+        fmt_int(s, 3, (int16_t)y_bin(r), 0);
         ui_textn(0, (uint8_t)(GRID_Y + r), s, 3, PAL_DIM);
         for (k = 0; k < VIS_COLS; k++) {
             c = (uint8_t)(view_c + k);
@@ -137,6 +162,21 @@ static void draw_grid(void) {
                 ui_text((uint8_t)(GRID_X + k * CELL_W), (uint8_t)(GRID_Y + r), "    ", PAL_TEXT);
             }
         }
+    }
+}
+
+static void draw_list(void) {
+    char s[5];
+    uint8_t r;
+    uint8_t y;
+    uint8_t v;
+    for (r = 0; r < rows(); r++) {
+        y = (uint8_t)(LIST_Y0 + r * 2u);
+        v = (emode == M_EDIT && r == cur_r) ? edit_val : td_value(r);
+        ui_tile(0, y, r == cur_r ? tile_small(emode == M_EDIT ? '*' : '>') : T_SPACE, PAL_AMBER);
+        ui_text(1, y, limit_names[r], PAL_TEXT);
+        fmt_int(s, 5, (int16_t)(v * 100), 0);
+        ui_textn(LIST_VAL_X, y, s, 5, cell_pal(r, 0));
     }
 }
 
@@ -179,11 +219,15 @@ static void draw_status(void) {
     } else if (td_dirty()) {
         line(STATUS_Y, "IN RAM, NOT BURNED", PAL_AMBER);
     } else {
-        line(STATUS_Y, "RPM X100   KPA", PAL_DIM);
-        fmt_int(s, 2, rpm_bin(cur_c), 0);
-        ui_textn(10, STATUS_Y, s, 2, PAL_TEXT);
-        fmt_int(s, 3, map_bin(cur_r), 0);
-        ui_textn(16, STATUS_Y, s, 3, PAL_TEXT);
+        if (is_list()) {
+            line(STATUS_Y, "VALUES IN RPM", PAL_DIM);
+        } else {
+            line(STATUS_Y, is_tps() ? "RPM X100   TPS" : "RPM X100   KPA", PAL_DIM);
+            fmt_int(s, 2, rpm_bin(cur_c), 0);
+            ui_textn(10, STATUS_Y, s, 2, PAL_TEXT);
+            fmt_int(s, 3, (int16_t)y_bin(cur_r), 0);
+            ui_textn(16, STATUS_Y, s, 3, PAL_TEXT);
+        }
     }
     if (td.state != TD_READY) {
         line(KEYS_Y, td.state == TD_ERROR ? "A:RETRY  B:BACK" : "B:BACK", PAL_DIM);
@@ -200,7 +244,11 @@ static void draw_status(void) {
 
 static void redraw(void) {
     if (td.state == TD_READY) {
-        draw_grid();
+        if (is_list()) {
+            draw_list();
+        } else {
+            draw_grid();
+        }
     }
     draw_status();
 }
