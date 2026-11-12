@@ -32,7 +32,7 @@ void dash_tick(void) {
 
     hdr_tick();
     fmt_int(s, 4, (int16_t)(rt->rpm > 9999u ? 9999u : rt->rpm), 0);
-    ui_big(1, 3, s, 4, rt->rpm >= 6800u ? PAL_RED : PAL_TEXT);
+    ui_big(1, 3, s, 4, rt->rpm >= (uint16_t)app.set.rpm_shift ? PAL_RED : PAL_TEXT);
     fmt_x10(s, 4, rt->afr_x10, 0);
     ui_big(11, 3, s, 4, PAL_TEXT);
     ui_bar(1, 5, 18, rt->rpm, 8000);

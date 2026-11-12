@@ -5,7 +5,16 @@
 #include "rt.h"
 
 typedef struct {
+    int16_t clt_warn_c;
+    int16_t afr_lean_x10;
+    int16_t rpm_shift;
+    int16_t boost_warn_x10;
+    int16_t auto_log;
+} settings_t;
+
+typedef struct {
     rt_t rt;
+    settings_t set;
     int16_t peak_x10;
     uint16_t uptime_s;
     uint8_t blink;

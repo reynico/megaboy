@@ -13,6 +13,7 @@ enum {
     SCR_BOOST,
     SCR_LOG,
     SCR_MENU,
+    SCR_SETTINGS,
     SCR_COUNT
 };
 

@@ -7,12 +7,14 @@
 #include "dash.h"
 #include "logpage.h"
 #include "menu.h"
+#include "settings.h"
 
 static const screen_t screens[SCR_COUNT] = {
     {dash_enter, dash_tick, dash_input},
     {boost_enter, boost_tick, boost_input},
     {logpage_enter, logpage_tick, logpage_input},
     {menu_enter, menu_tick, menu_input},
+    {settings_enter, settings_tick, settings_input},
 };
 
 static const uint8_t pages[] = {SCR_DASH, SCR_BOOST, SCR_LOG};
