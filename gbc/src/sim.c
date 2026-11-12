@@ -6,8 +6,6 @@ static uint8_t t;
 static int16_t boost;
 static uint16_t lfsr;
 static uint16_t ticks;
-static int16_t heat;
-static uint8_t heating;
 
 static int8_t noise(void) {
     uint16_t bit = (uint16_t)(((lfsr >> 0) ^ (lfsr >> 2) ^ (lfsr >> 3) ^ (lfsr >> 5)) & 1u);
@@ -20,12 +18,6 @@ void sim_init(void) {
     boost = 142;
     lfsr = 0xace1u;
     ticks = 0;
-    heat = 0;
-    heating = 0;
-}
-
-void sim_overheat(void) {
-    heating = 1;
 }
 
 void sim_step(rt_t *rt) {
@@ -66,15 +58,7 @@ void sim_step(rt_t *rt) {
     rt->map_x10 = (int16_t)(1013 + (int32_t)boost * 6895 / 1000);
     rt->afr_x10 = (int16_t)(tps > 500 ? 116 + n / 3 : (tps == 0 ? 162 + n / 2 : 147 + n / 4));
     rt->adv_x10 = (int16_t)(tps > 500 ? 300 - (int32_t)pos * 9 / 10 : 340 + n);
-    if (heating) {
-        heat = (int16_t)(heat + 3);
-        if (heat >= 250) {
-            heating = 0;
-        }
-    } else if (heat > 0) {
-        heat = (int16_t)(heat - 1);
-    }
-    rt->clt_c_x10 = (int16_t)(880 + (int16_t)((ticks / 20u) % 30u) + heat);
+    rt->clt_c_x10 = (int16_t)(880 + (int16_t)((ticks / 20u) % 30u));
     rt->iat_c_x10 = (int16_t)(380 + (int32_t)pos * 4 / 10);
     rt->batt_x10 = (int16_t)(138 + n / 7);
 
