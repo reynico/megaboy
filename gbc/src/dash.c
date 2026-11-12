@@ -26,10 +26,27 @@ void dash_enter(void) {
     ui_text(11, 16, "MAP", PAL_DIM);
 }
 
+static void header(void) {
+    char s[9];
+    if (app.logging) {
+        ui_tile(10, 0, app.blink ? T_DOT : T_SPACE, PAL_RED);
+        s[0] = 'R';
+        s[1] = 'E';
+        s[2] = 'C';
+        s[3] = ' ';
+        fmt_time(s + 4, app.log_s);
+        ui_textn(11, 0, s, 9, PAL_TEXT);
+    } else {
+        ui_tile(10, 0, T_SPACE, PAL_TEXT);
+        ui_text(11, 0, "  LOG OFF", PAL_DIM);
+    }
+}
+
 void dash_tick(void) {
     const rt_t *rt = &app.rt;
     char s[5];
 
+    header();
     fmt_int(s, 4, (int16_t)(rt->rpm > 9999u ? 9999u : rt->rpm), 0);
     ui_big(1, 3, s, 4, rt->rpm >= 6800u ? PAL_RED : PAL_TEXT);
     fmt_x10(s, 4, rt->afr_x10, 0);
@@ -59,5 +76,13 @@ void dash_tick(void) {
 void dash_input(uint8_t pressed) {
     if (pressed & J_B) {
         app.peak_x10 = 0;
+    }
+    if (pressed & J_SELECT) {
+        if (app.logging) {
+            app_log_stop();
+        } else {
+            app_log_start();
+        }
+        dash_tick();
     }
 }

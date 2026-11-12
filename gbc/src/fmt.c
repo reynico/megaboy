@@ -66,3 +66,17 @@ void fmt_x10(char *out, uint8_t w, int16_t v, uint8_t plus) {
     s[n++] = (char)('0' + a % 10u);
     emit(out, w, s, n);
 }
+
+void fmt_time(char *out, uint16_t sec) {
+    uint16_t m = sec / 60u;
+    uint8_t ss = (uint8_t)(sec % 60u);
+    if (m > 99u) {
+        m = 99u;
+        ss = 59u;
+    }
+    out[0] = (char)('0' + m / 10u);
+    out[1] = (char)('0' + m % 10u);
+    out[2] = ':';
+    out[3] = (char)('0' + ss / 10u);
+    out[4] = (char)('0' + ss % 10u);
+}

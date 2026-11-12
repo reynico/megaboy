@@ -47,6 +47,12 @@ static void test_fmt(void) {
     CHECK(fmt_round_x10(885) == 89);
     CHECK(fmt_round_x10(884) == 88);
     CHECK(fmt_round_x10(-185) == -19);
+    fmt_time(b, 192);
+    CHECK(eq(b, "03:12"));
+    fmt_time(b, 0);
+    CHECK(eq(b, "00:00"));
+    fmt_time(b, 65535);
+    CHECK(eq(b, "99:59"));
 }
 
 static void test_sim(void) {
