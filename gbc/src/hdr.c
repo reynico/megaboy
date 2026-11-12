@@ -13,7 +13,16 @@ void hdr_draw(const char *title) {
 
 void hdr_tick(void) {
     char s[9];
-    if (app.logging) {
+    if (app.src == SRC_LOST) {
+        ui_tile(10, 0, T_SPACE, PAL_TEXT);
+        ui_text(11, 0, app.blink ? "  NO LINK" : "         ", PAL_RED);
+    } else if (app_ecu_missing()) {
+        ui_tile(10, 0, T_SPACE, PAL_TEXT);
+        ui_text(11, 0, app.blink ? "   NO ECU" : "         ", PAL_RED);
+    } else if (app.demo) {
+        ui_tile(10, 0, T_SPACE, PAL_TEXT);
+        ui_text(11, 0, "     DEMO", PAL_AMBER);
+    } else if (app.logging) {
         ui_tile(10, 0, app.blink ? T_DOT : T_SPACE, PAL_RED);
         s[0] = 'R';
         s[1] = 'E';
