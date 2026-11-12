@@ -9,6 +9,15 @@
 
 #define LINK_T_RT 0x01u
 #define LINK_T_STATUS 0x02u
+#define LINK_T_TABLE 0x03u
+#define LINK_T_ACK 0x04u
+
+#define LINK_C_READ 0x10u
+#define LINK_C_WRITE 0x11u
+#define LINK_C_BURN 0x12u
+
+#define LINK_TABLE_CHUNK 28u
+#define LINK_ACK_LEN 5u
 
 #define LINK_RT_LEN 20u
 #define LINK_STATUS_LEN 2u
