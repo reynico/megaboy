@@ -41,6 +41,7 @@ void main(void) {
 
     DISPLAY_OFF;
     if (_cpu == CGB_TYPE) {
+        cpu_fast();
         set_bkg_palette(0, PAL_COUNT, pals);
     } else {
         BGP_REG = 0x1bu;
