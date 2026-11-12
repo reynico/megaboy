@@ -5,11 +5,12 @@
 #include "app.h"
 #include "fmt.h"
 #include "hdr.h"
+#include "sim.h"
 #include "screen.h"
 #include "tiles.h"
 #include "ui.h"
 
-enum { K_TEMP, K_X10, K_INT, K_ONOFF, K_RTC };
+enum { K_TEMP, K_X10, K_INT, K_ONOFF, K_RTC, K_ACTION };
 
 typedef struct {
     const char *label;
@@ -27,9 +28,10 @@ static const item_t items[] = {
     {"BOOST WRN", &app.set.boost_warn_x10, 50, 300, 5, K_X10},
     {"AUTO LOG", &app.set.auto_log, 0, 1, 1, K_ONOFF},
     {"CLOCK", 0, 0, 0, 0, K_RTC},
+    {"SIM OVERHEAT", 0, 0, 0, 0, K_ACTION},
 };
 #define ITEM_COUNT (sizeof items / sizeof items[0])
-#define ITEM_Y0 3u
+#define ITEM_Y0 2u
 #define VAL_X 13u
 #define VAL_W 6u
 
@@ -58,8 +60,10 @@ static void draw_value(uint8_t i) {
     case K_ONOFF:
         ui_text(VAL_X, item_y(i), *it->val ? "    ON" : "   OFF", pal);
         return;
-    default:
+    case K_RTC:
         ui_text(VAL_X, item_y(i), "NO RTC", PAL_DIM);
+        return;
+    default:
         return;
     }
     ui_textn(VAL_X, item_y(i), s, VAL_W, pal);
@@ -134,6 +138,8 @@ void settings_input(uint8_t pressed) {
     } else if (pressed & J_DOWN) {
         sel = (uint8_t)((sel + 1u) % ITEM_COUNT);
         draw_cursor();
+    } else if ((pressed & J_A) && items[sel].kind == K_ACTION) {
+        sim_overheat();
     } else if ((pressed & J_A) && items[sel].kind != K_RTC) {
         editing = 1;
         saved = *items[sel].val;
