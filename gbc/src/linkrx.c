@@ -34,7 +34,6 @@ void linkrx_init(void) {
     link_parser_reset(&parser);
     CRITICAL {
         add_SIO(sio_isr);
-        add_SIO(nowait_int_handler);
     }
     set_interrupts(VBL_IFLAG | SIO_IFLAG);
     SB_REG = 0;
