@@ -219,9 +219,14 @@ static void do_write(uint8_t id, uint8_t cell, uint8_t val) {
         send_ack(LINK_C_WRITE, id, cell, TUNE_E_ECU, 0);
         return;
     }
-    uint8_t off = (uint8_t)(t->val_off + cell);
-    uint8_t cur = cell < tune_cells(t) ? page_buf[off] : 0;
-    uint8_t st = tune_check_write(id, cell, cur, val);
+    uint8_t st = tune_check_write(id, cell, 0, 0);
+    if (st == TUNE_E_TABLE || st == TUNE_E_CELL) {
+        send_ack(LINK_C_WRITE, id, cell, st, 0);
+        return;
+    }
+    uint8_t off = tune_cell_offset(t, cell);
+    uint8_t cur = page_buf[off];
+    st = tune_check_write(id, cell, cur, val);
     if (st != TUNE_OK) {
         send_ack(LINK_C_WRITE, id, cell, st, cur);
         return;
