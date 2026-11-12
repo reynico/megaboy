@@ -28,6 +28,7 @@ static const item_t items[] = {
     {"SHIFT RPM", &app.set.rpm_shift, 4000, 8000, 100, K_INT},
     {"BOOST WRN", &app.set.boost_warn_x10, 50, 300, 5, K_X10},
     {"AUTO LOG", &app.set.auto_log, 0, 1, 1, K_ONOFF},
+    {"ALARM SND", &app.set.alarm_snd, 0, 1, 1, K_ONOFF},
     {"CLOCK", 0, 0, 0, 0, K_RTC},
     {"SIM OVERHEAT", 0, 0, 0, 0, K_ACTION},
 };
@@ -35,6 +36,7 @@ static const item_t items[] = {
 #define ITEM_Y0 2u
 #define VAL_X 13u
 #define VAL_W 6u
+#define FOOTER_Y 17u
 
 static uint8_t sel;
 static uint8_t editing;
@@ -82,7 +84,7 @@ static void draw_cursor(void) {
 }
 
 static void draw_footer(void) {
-    ui_text(1, 16, editing ? "A:OK  B:CANCEL" : "A:EDIT  B:BACK", PAL_DIM);
+    ui_text(1, FOOTER_Y, editing ? "A:OK  B:CANCEL" : "A:EDIT  B:BACK", PAL_DIM);
 }
 
 void settings_clamp(void) {
@@ -110,7 +112,6 @@ void settings_enter(void) {
         ui_text(1, item_y(i), items[i].label, items[i].kind == K_RTC ? PAL_DIM : PAL_TEXT);
         draw_value(i);
     }
-    ui_divider(15);
     draw_footer();
     draw_cursor();
 }

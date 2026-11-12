@@ -10,6 +10,7 @@ typedef struct {
     int16_t rpm_shift;
     int16_t boost_warn_x10;
     int16_t auto_log;
+    int16_t alarm_snd;
 } settings_t;
 
 typedef struct {

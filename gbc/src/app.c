@@ -68,6 +68,7 @@ void app_init(void) {
     app.set.rpm_shift = 6800;
     app.set.boost_warn_x10 = 200;
     app.set.auto_log = 1;
+    app.set.alarm_snd = 1;
     app.peak_x10 = 0;
     app.uptime_s = 0;
     app.blink = 0;

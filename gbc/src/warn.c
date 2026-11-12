@@ -5,6 +5,7 @@
 #include "app.h"
 #include "fmt.h"
 #include "screen.h"
+#include "sound.h"
 #include "tiles.h"
 #include "ui.h"
 
@@ -48,6 +49,7 @@ void warn_enter(void) {
     ui_text(4, 11, "LIMIT", PAL_WARN_DIM);
     ui_textn(10, 11, s, 4, PAL_WARN_DIM);
     ui_text(7, 15, "A:ACK", PAL_WARN_DIM);
+    sound_alarm(app.set.alarm_snd != 0);
 }
 
 void warn_tick(void) {
@@ -71,6 +73,7 @@ void warn_tick(void) {
 
 void warn_input(uint8_t pressed) {
     if (pressed & J_A) {
+        sound_alarm(0);
         app_warn_ack(shown);
         screen_return();
     }

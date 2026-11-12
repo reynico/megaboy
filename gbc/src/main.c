@@ -7,6 +7,7 @@
 #include "save.h"
 #include "screen.h"
 #include "settings.h"
+#include "sound.h"
 #include "tiles.h"
 
 #define C_BG RGB(2, 3, 4)
@@ -50,6 +51,7 @@ void main(void) {
         BGP_REG = 0x1bu;
     }
     tiles_load();
+    sound_init();
     app_init();
     if (save_load(&app.set)) {
         settings_clamp();
@@ -62,6 +64,7 @@ void main(void) {
     while (1) {
         wait_vbl_done();
         linkrx_poll();
+        sound_tick();
         screen_input(input_poll());
 
         if (++sec_frames >= FRAMES_PER_SECOND) {
