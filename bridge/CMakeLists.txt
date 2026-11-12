@@ -17,7 +17,7 @@ if(NOT PICO_SDK_PATH)
 endif()
 include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 
-project(megameboy_bridge C CXX ASM)
+project(megaboy_bridge C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 pico_sdk_init()
 
