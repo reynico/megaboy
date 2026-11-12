@@ -30,6 +30,7 @@ static uint8_t view_c;
 static uint8_t live_r;
 static uint8_t live_c;
 static uint8_t shown_state;
+static uint8_t edit_val;
 
 static uint8_t rows(void) {
     return td.t->rows;
@@ -130,7 +131,7 @@ static void draw_grid(void) {
         for (k = 0; k < VIS_COLS; k++) {
             c = (uint8_t)(view_c + k);
             if (c < cols()) {
-                fmt_cell(s, td_value(cell_at(r, c)));
+                fmt_cell(s, (emode == M_EDIT && r == cur_r && c == cur_c) ? edit_val : td_value(cell_at(r, c)));
                 ui_textn((uint8_t)(GRID_X + k * CELL_W), (uint8_t)(GRID_Y + r), s, CELL_W, cell_pal(r, c));
             } else {
                 ui_text((uint8_t)(GRID_X + k * CELL_W), (uint8_t)(GRID_Y + r), "    ", PAL_TEXT);
@@ -187,7 +188,7 @@ static void draw_status(void) {
     if (td.state != TD_READY) {
         line(KEYS_Y, td.state == TD_ERROR ? "A:RETRY  B:BACK" : "B:BACK", PAL_DIM);
     } else if (emode == M_EDIT) {
-        line(KEYS_Y, "UP/DOWN  A/B:DONE", PAL_DIM);
+        line(KEYS_Y, "A:SAVE  B:CANCEL", PAL_DIM);
     } else if (emode == M_EXIT) {
         line(KEYS_Y, "A:BURN  B:DISCARD", PAL_DIM);
     } else if (emode == M_LEAVE) {
@@ -275,15 +276,21 @@ static void move(uint8_t pressed) {
 
 static void edit(uint8_t pressed) {
     uint8_t cell = cell_at(cur_r, cur_c);
-    uint8_t v = td_value(cell);
-    if ((pressed & J_UP) && v < 255u) {
-        td_set(cell, (uint8_t)(v + 1u));
-    } else if ((pressed & J_DOWN) && v > 0u) {
-        td_set(cell, (uint8_t)(v - 1u));
-    } else if (pressed & (J_A | J_B)) {
+    if ((pressed & J_UP) && edit_val < td.t->max) {
+        edit_val++;
+    } else if ((pressed & J_DOWN) && edit_val > td.t->min) {
+        edit_val--;
+    } else if (pressed & J_A) {
+        if (edit_val != td_value(cell) && !td_set(cell, edit_val)) {
+            return;
+        }
         emode = M_NAV;
-        td.changed = 1;
+    } else if (pressed & J_B) {
+        emode = M_NAV;
+    } else {
+        return;
     }
+    td.changed = 1;
 }
 
 void tedit_input(uint8_t pressed) {
@@ -321,8 +328,9 @@ void tedit_input(uint8_t pressed) {
     case M_LEAVE:
         break;
     default:
-        if (pressed & J_A) {
+        if ((pressed & J_A) && !td_busy()) {
             emode = M_EDIT;
+            edit_val = td_value(cell_at(cur_r, cur_c));
             td.err = TUNE_OK;
             td.changed = 1;
         } else if (pressed & J_B) {
