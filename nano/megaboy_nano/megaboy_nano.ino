@@ -4,6 +4,7 @@ extern "C" {
 #include "ecu.h"
 #include "link.h"
 #include "ms1.h"
+#include "tune.h"
 }
 
 #define ECU_RX 10
@@ -22,6 +23,8 @@ extern "C" {
 #define ECU_TIMEOUT_MS 400
 #define MAX_ERRORS 10
 #define LINK_F_DEMO 0x01
+#define BURN_WAIT_MS 200
+#define NO_PAGE 0xff
 
 static SoftwareSerial ecu(ECU_RX, ECU_TX);
 static ms1_cfg_t cfg;
@@ -32,6 +35,13 @@ static uint32_t last_poll;
 static uint32_t last_status;
 static uint32_t last_try;
 static uint32_t last_print;
+static link_parser_t up;
+static uint8_t cmd_type;
+static uint8_t cmd_len;
+static uint8_t cmd[LINK_ACK_LEN];
+static bool cmd_pending;
+static uint8_t page_buf[MS1_PAGE_LEN];
+static uint8_t page_cached = NO_PAGE;
 
 static uint8_t gb_xfer(uint8_t out) {
     uint8_t in = 0;
@@ -52,7 +62,13 @@ static void gb_send(uint8_t type, const uint8_t *payload, uint8_t len) {
     uint8_t fr[LINK_FRAME_MAX];
     uint8_t n = link_encode(fr, type, payload, len);
     for (uint8_t i = 0; i < n; i++) {
-        gb_xfer(fr[i]);
+        uint8_t b = gb_xfer(fr[i]);
+        if (link_feed(&up, b) && !cmd_pending && up.len <= sizeof cmd) {
+            cmd_type = up.type;
+            cmd_len = up.len;
+            memcpy(cmd, up.buf, up.len);
+            cmd_pending = true;
+        }
     }
 }
 
@@ -106,7 +122,8 @@ static bool ecu_cmd(const uint8_t *cmd, uint8_t clen, uint8_t *out, uint8_t n) {
 static bool ecu_connect(void) {
     static const uint8_t c_sig[] = {MS1_CMD_SIG};
     static const uint8_t c_page[] = {MS1_CMD_PAGE, MS1_CONFIG_PAGE, MS1_CMD_READ};
-    uint8_t buf[MS1_PAGE_LEN];
+    uint8_t *buf = page_buf;
+    page_cached = NO_PAGE;
 
     if (!ecu_cmd(c_sig, sizeof c_sig, buf, MS1_SIG_LEN)) {
         return false;
@@ -122,6 +139,7 @@ static bool ecu_connect(void) {
     if (!ecu_cmd(c_page, sizeof c_page, buf, MS1_PAGE_LEN) || !ms1_parse_config(buf, MS1_PAGE_LEN, &cfg)) {
         return false;
     }
+    page_cached = MS1_CONFIG_PAGE;
     Serial.print(F("config: "));
     Serial.print(cfg.cyl);
     Serial.print(cfg.two_stroke ? F(" cyl, two-stroke, map ") : F(" cyl, four-stroke, map "));
@@ -171,6 +189,144 @@ static void demo_rt(ecu_rt_t *r, uint32_t now) {
     r->boost_psi_x10 = ecu_boost_psi_x10(r->map_x10, r->baro_x10);
 }
 
+static void demo_page(const tune_table_t *t) {
+    for (uint8_t r = 0; r < t->rows; r++) {
+        for (uint8_t c = 0; c < t->cols; c++) {
+            uint8_t v;
+            if (t == tune_get(TUNE_VE1)) {
+                v = (uint8_t)(40 + r * 5 + c * 2);
+            } else if (t == tune_get(TUNE_ADV1)) {
+                v = (uint8_t)(60 + c * 5 - r * 2);
+            } else {
+                v = (uint8_t)(120 - r * 4);
+            }
+            page_buf[t->val_off + r * t->cols + c] = v;
+        }
+        page_buf[t->map_off + r] = (uint8_t)(30 + r * (220 / t->rows));
+    }
+    for (uint8_t c = 0; c < t->cols; c++) {
+        page_buf[t->rpm_off + c] = (uint8_t)(6 + c * (66 / t->cols));
+    }
+}
+
+static bool read_page(const tune_table_t *t) {
+    if (demo) {
+        if (page_cached != t->page_cmd) {
+            demo_page(t);
+            page_cached = t->page_cmd;
+        }
+        return true;
+    }
+    const uint8_t c[] = {MS1_CMD_PAGE, t->page_cmd, MS1_CMD_READ};
+    page_cached = NO_PAGE;
+    if (!ecu_cmd(c, sizeof c, page_buf, MS1_PAGE_LEN)) {
+        return false;
+    }
+    page_cached = t->page_cmd;
+    return true;
+}
+
+static void send_ack(uint8_t c, uint8_t id, uint8_t cell, uint8_t st, uint8_t val) {
+    const uint8_t pl[LINK_ACK_LEN] = {c, id, cell, st, val};
+    gb_send(LINK_T_ACK, pl, LINK_ACK_LEN);
+}
+
+static void do_read(uint8_t id) {
+    const tune_table_t *t = tune_get(id);
+    if (!t) {
+        send_ack(LINK_C_READ, id, 0, TUNE_E_TABLE, 0);
+        return;
+    }
+    if (!read_page(t)) {
+        send_ack(LINK_C_READ, id, 0, TUNE_E_ECU, 0);
+        return;
+    }
+    uint8_t len = tune_blob_len(t);
+    uint8_t pl[2 + LINK_TABLE_CHUNK];
+    for (uint8_t off = 0; off < len; off = (uint8_t)(off + LINK_TABLE_CHUNK)) {
+        uint8_t n = (uint8_t)min((int)LINK_TABLE_CHUNK, len - off);
+        pl[0] = id;
+        pl[1] = off;
+        for (uint8_t i = 0; i < n; i++) {
+            pl[2 + i] = page_buf[tune_blob_offset(t, (uint8_t)(off + i))];
+        }
+        gb_send(LINK_T_TABLE, pl, (uint8_t)(2 + n));
+    }
+    send_ack(LINK_C_READ, id, 0, TUNE_OK, 0);
+}
+
+static void do_write(uint8_t id, uint8_t cell, uint8_t val) {
+    const tune_table_t *t = tune_get(id);
+    if (!t) {
+        send_ack(LINK_C_WRITE, id, cell, TUNE_E_TABLE, 0);
+        return;
+    }
+    if (page_cached != t->page_cmd && !read_page(t)) {
+        send_ack(LINK_C_WRITE, id, cell, TUNE_E_ECU, 0);
+        return;
+    }
+    uint8_t off = (uint8_t)(t->val_off + cell);
+    uint8_t cur = cell < tune_cells(t) ? page_buf[off] : 0;
+    uint8_t st = tune_check_write(id, cell, cur, val);
+    if (st != TUNE_OK) {
+        send_ack(LINK_C_WRITE, id, cell, st, cur);
+        return;
+    }
+    if (demo) {
+        page_buf[off] = val;
+    } else {
+        const uint8_t w[] = {MS1_CMD_PAGE, t->page_cmd, 'W', off, val};
+        ecu.write(w, sizeof w);
+        if (!read_page(t)) {
+            send_ack(LINK_C_WRITE, id, cell, TUNE_E_ECU, cur);
+            return;
+        }
+    }
+    Serial.print(F("write: table "));
+    Serial.print(id);
+    Serial.print(F(" cell "));
+    Serial.print(cell);
+    Serial.print(F(" "));
+    Serial.print(cur);
+    Serial.print(F(" -> "));
+    Serial.println(page_buf[off]);
+    send_ack(LINK_C_WRITE, id, cell, page_buf[off] == val ? TUNE_OK : TUNE_E_VERIFY, page_buf[off]);
+}
+
+static void do_burn(uint8_t id) {
+    const tune_table_t *t = tune_get(id);
+    if (!t) {
+        send_ack(LINK_C_BURN, id, 0, TUNE_E_TABLE, 0);
+        return;
+    }
+    if (!demo) {
+        const uint8_t b[] = {MS1_CMD_PAGE, t->page_cmd, 'B'};
+        ecu.write(b, sizeof b);
+        delay(BURN_WAIT_MS);
+        page_cached = NO_PAGE;
+    }
+    Serial.print(F("burn: table "));
+    Serial.println(id);
+    send_ack(LINK_C_BURN, id, 0, TUNE_OK, 0);
+}
+
+static void handle_cmd(void) {
+    uint8_t type = cmd_type;
+    uint8_t len = cmd_len;
+    cmd_pending = false;
+    if (!demo && !ecu_ok) {
+        send_ack(type, len ? cmd[0] : 0, len > 1 ? cmd[1] : 0, TUNE_E_ECU, 0);
+        return;
+    }
+    if (type == LINK_C_READ && len == 1) {
+        do_read(cmd[0]);
+    } else if (type == LINK_C_WRITE && len == 3) {
+        do_write(cmd[0], cmd[1], cmd[2]);
+    } else if (type == LINK_C_BURN && len == 1) {
+        do_burn(cmd[0]);
+    }
+}
+
 void setup() {
     Serial.begin(115200);
     pinMode(GB_SCK, OUTPUT);
@@ -182,6 +338,7 @@ void setup() {
     delay(10);
     demo = digitalRead(DEMO_PIN) == LOW;
     ecu.begin(MS1_BAUD);
+    link_parser_reset(&up);
     Serial.println(demo ? F("megaboy nano: demo") : F("megaboy nano: ms1/extra"));
 }
 
@@ -219,5 +376,9 @@ void loop() {
     if (now - last_status >= STATUS_MS) {
         last_status = now;
         send_status();
+    }
+
+    if (cmd_pending) {
+        handle_cmd();
     }
 }
