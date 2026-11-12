@@ -28,6 +28,7 @@ static const item_t items[] = {
     {"BOOST WRN", &app.set.boost_warn_x10, 50, 300, 5, K_X10},
     {"AUTO LOG", &app.set.auto_log, 0, 1, 1, K_ONOFF},
     {"ALARM SND", &app.set.alarm_snd, 0, 1, 1, K_ONOFF},
+    {"KEY SND", &app.set.key_snd, 0, 1, 1, K_ONOFF},
     {"CLOCK", 0, 0, 0, 0, K_RTC},
 };
 #define ITEM_COUNT (sizeof items / sizeof items[0])

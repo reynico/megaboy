@@ -20,6 +20,46 @@ static uint8_t t;
 static uint8_t playing;
 static voice_t voices[VOICES];
 
+typedef struct {
+    uint16_t f;
+    uint8_t frames;
+} sfx_note_t;
+
+static const sfx_note_t sfx_move[] = {{1899u, 3u}, {0u, 0u}};
+static const sfx_note_t sfx_up[] = {{1949u, 2u}, {0u, 0u}};
+static const sfx_note_t sfx_down[] = {{1881u, 2u}, {0u, 0u}};
+static const sfx_note_t sfx_ok[] = {{1849u, 3u}, {1923u, 4u}, {0u, 0u}};
+static const sfx_note_t sfx_back[] = {{1923u, 3u}, {1849u, 4u}, {0u, 0u}};
+
+static const sfx_note_t *sfx;
+static uint8_t sfx_left;
+
+static void sfx_tone(uint16_t f) {
+    NR10_REG = 0x00u;
+    NR11_REG = 0x80u;
+    NR12_REG = 0x81u;
+    NR13_REG = (uint8_t)f;
+    NR14_REG = (uint8_t)(0x80u | (f >> 8));
+}
+
+static void sfx_tick(void) {
+    if (!sfx) {
+        return;
+    }
+    if (sfx_left) {
+        sfx_left--;
+        return;
+    }
+    if (sfx->frames == 0u) {
+        sfx = 0;
+        NR12_REG = 0x00u;
+        return;
+    }
+    sfx_tone(sfx->f);
+    sfx_left = (uint8_t)(sfx->frames - 1u);
+    sfx++;
+}
+
 static void ch2_tone(uint16_t f) {
     NR21_REG = 0x80u;
     NR22_REG = 0xf0u;
@@ -64,6 +104,10 @@ void sound_init(void) {
 }
 
 void sound_alarm(uint8_t on) {
+    if (on) {
+        sfx = 0;
+        NR12_REG = 0x00u;
+    }
     if (playing) {
         music_stop();
     }
@@ -82,6 +126,9 @@ static void voice_start(uint8_t i) {
 
 void sound_music(uint8_t on) {
     uint8_t i;
+    if (on) {
+        sfx = 0;
+    }
     if (!on) {
         if (playing) {
             music_stop();
@@ -125,7 +172,27 @@ static void music_tick(void) {
     }
 }
 
+void sound_key(uint8_t pressed) {
+    if (!pressed || active || playing) {
+        return;
+    }
+    if (pressed & J_UP) {
+        sfx = sfx_up;
+    } else if (pressed & J_DOWN) {
+        sfx = sfx_down;
+    } else if (pressed & (J_LEFT | J_RIGHT)) {
+        sfx = sfx_move;
+    } else if (pressed & J_B) {
+        sfx = sfx_back;
+    } else {
+        sfx = sfx_ok;
+    }
+    sfx_left = 0;
+    sfx_tick();
+}
+
 void sound_tick(void) {
+    sfx_tick();
     if (!active) {
         if (playing) {
             music_tick();

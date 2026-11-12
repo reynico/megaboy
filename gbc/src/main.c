@@ -42,6 +42,7 @@ void main(void) {
     uint8_t sec_frames = 0;
     uint8_t since_draw = 0;
     uint8_t draw;
+    uint8_t pressed;
 
     DISPLAY_OFF;
     if (_cpu == CGB_TYPE) {
@@ -65,7 +66,11 @@ void main(void) {
         wait_vbl_done();
         linkrx_poll();
         sound_tick();
-        screen_input(input_poll());
+        pressed = input_poll();
+        if (app.set.key_snd) {
+            sound_key(pressed);
+        }
+        screen_input(pressed);
 
         if (++sec_frames >= FRAMES_PER_SECOND) {
             sec_frames = 0;
