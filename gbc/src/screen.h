@@ -10,6 +10,7 @@ typedef struct {
 
 enum {
     SCR_DASH,
+    SCR_BOOST,
     SCR_COUNT
 };
 
