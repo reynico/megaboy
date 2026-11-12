@@ -18,7 +18,9 @@ void about_enter(void) {
     ui_text(1, 5, "DATA", PAL_DIM);
     ui_text(1, 7, "LINK", PAL_DIM);
     ui_text(1, 9, "ECU", PAL_DIM);
-    ui_text(1, 12, "UPTIME", PAL_DIM);
+    ui_text(1, 11, "UPTIME", PAL_DIM);
+    ui_text(1, 13, "GITHUB.COM/", PAL_BLUE);
+    ui_text(1, 14, "REYNICO/MEGABOY", PAL_BLUE);
     ui_divider(15);
     ui_text(1, 16, "B:BACK", PAL_DIM);
 }
@@ -60,7 +62,7 @@ void about_tick(void) {
     ui_text(8, 7, link_text(), app.src == SRC_LOST ? PAL_RED : PAL_TEXT);
     ui_text(8, 9, ecu_text(), PAL_TEXT);
     fmt_time(s, app.uptime_s);
-    ui_textn(8, 12, s, 5, PAL_TEXT);
+    ui_textn(8, 11, s, 5, PAL_TEXT);
 }
 
 void about_input(uint8_t pressed) {
