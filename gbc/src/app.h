@@ -26,10 +26,15 @@ typedef struct {
 
 #define LOG_BYTES_PER_S 3200u
 
+enum { W_NONE, W_CLT, W_LEAN, W_BOOST, W_COUNT };
+
 extern app_t app;
 
 void app_init(void);
 void app_log_start(void);
 void app_log_stop(void);
+uint8_t app_warn_active(uint8_t id);
+uint8_t app_warning(void);
+void app_warn_ack(uint8_t id);
 void app_tick(void);
 void app_second(void);

@@ -4,6 +4,55 @@
 
 app_t app;
 static uint8_t was_running;
+static uint8_t acked;
+static uint8_t clear_ticks[W_COUNT];
+
+#define WARN_CLEAR_TICKS 30u
+#define LEAN_MIN_BOOST_X10 20
+#define LEAN_MIN_TPS_X10 500
+
+uint8_t app_warn_active(uint8_t id) {
+    const rt_t *rt = &app.rt;
+    switch (id) {
+    case W_CLT:
+        return rt->clt_c_x10 >= app.set.clt_warn_c * 10;
+    case W_LEAN:
+        return rt->boost_psi_x10 > LEAN_MIN_BOOST_X10 && rt->tps_x10 >= LEAN_MIN_TPS_X10 &&
+               rt->afr_x10 > app.set.afr_lean_x10;
+    case W_BOOST:
+        return rt->boost_psi_x10 >= app.set.boost_warn_x10;
+    default:
+        return 0;
+    }
+}
+
+uint8_t app_warning(void) {
+    uint8_t id;
+    for (id = 1; id < W_COUNT; id++) {
+        if (app_warn_active(id) && !(acked & (uint8_t)(1u << id))) {
+            return id;
+        }
+    }
+    return W_NONE;
+}
+
+void app_warn_ack(uint8_t id) {
+    acked |= (uint8_t)(1u << id);
+    clear_ticks[id] = 0;
+}
+
+static void warn_update(void) {
+    uint8_t id;
+    for (id = 1; id < W_COUNT; id++) {
+        if (app_warn_active(id)) {
+            clear_ticks[id] = 0;
+        } else if (clear_ticks[id] < WARN_CLEAR_TICKS) {
+            clear_ticks[id]++;
+        } else {
+            acked &= (uint8_t)~(1u << id);
+        }
+    }
+}
 
 void app_init(void) {
     sim_init();
@@ -44,6 +93,7 @@ void app_tick(void) {
         app_log_start();
     }
     was_running = running;
+    warn_update();
     if (app.rt.boost_psi_x10 > app.peak_x10) {
         app.peak_x10 = app.rt.boost_psi_x10;
     }

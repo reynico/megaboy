@@ -8,6 +8,7 @@
 #include "logpage.h"
 #include "menu.h"
 #include "settings.h"
+#include "warn.h"
 
 static const screen_t screens[SCR_COUNT] = {
     {dash_enter, dash_tick, dash_input},
@@ -15,6 +16,7 @@ static const screen_t screens[SCR_COUNT] = {
     {logpage_enter, logpage_tick, logpage_input},
     {menu_enter, menu_tick, menu_input},
     {settings_enter, settings_tick, settings_input},
+    {warn_enter, warn_tick, warn_input},
 };
 
 static const uint8_t pages[] = {SCR_DASH, SCR_BOOST, SCR_LOG};
@@ -22,6 +24,7 @@ static const uint8_t pages[] = {SCR_DASH, SCR_BOOST, SCR_LOG};
 
 static uint8_t current;
 static uint8_t page;
+static uint8_t before_warn;
 
 static uint8_t is_page(void) {
     return current == pages[page];
@@ -47,7 +50,18 @@ uint8_t screen_current(void) {
     return current;
 }
 
+void screen_return(void) {
+    screen_go(before_warn);
+}
+
 void screen_tick(void) {
+    uint8_t w = app_warning();
+    if (w != W_NONE && current != SCR_WARN) {
+        before_warn = current;
+        warn_show(w);
+        screen_go(SCR_WARN);
+        return;
+    }
     screens[current].tick();
 }
 
