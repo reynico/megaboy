@@ -5,13 +5,14 @@
 #include "app.h"
 #include "boost.h"
 #include "dash.h"
-#include "hdr.h"
 #include "logpage.h"
+#include "menu.h"
 
 static const screen_t screens[SCR_COUNT] = {
     {dash_enter, dash_tick, dash_input},
     {boost_enter, boost_tick, boost_input},
     {logpage_enter, logpage_tick, logpage_input},
+    {menu_enter, menu_tick, menu_input},
 };
 
 static const uint8_t pages[] = {SCR_DASH, SCR_BOOST, SCR_LOG};
@@ -36,6 +37,10 @@ void screen_go(uint8_t id) {
     screens[current].tick();
 }
 
+void screen_back(void) {
+    screen_go(pages[page]);
+}
+
 uint8_t screen_current(void) {
     return current;
 }
@@ -51,6 +56,10 @@ static uint8_t page_input(uint8_t pressed) {
     }
     if (pressed & J_LEFT) {
         screen_go(pages[(page + PAGE_COUNT - 1u) % PAGE_COUNT]);
+        return 1;
+    }
+    if (pressed & J_START) {
+        screen_go(SCR_MENU);
         return 1;
     }
     if (pressed & J_SELECT) {
