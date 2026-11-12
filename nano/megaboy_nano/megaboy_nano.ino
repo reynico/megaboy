@@ -12,7 +12,6 @@ extern "C" {
 #define GB_SCK 2
 #define GB_OUT 3
 #define GB_IN 4
-#define DEMO_PIN 5
 
 #define GB_HALF_US 15
 #define GB_GAP_US 150
@@ -22,13 +21,11 @@ extern "C" {
 #define RETRY_MS 1000
 #define ECU_TIMEOUT_MS 400
 #define MAX_ERRORS 10
-#define LINK_F_DEMO 0x01
 #define BURN_WAIT_MS 200
 #define NO_PAGE 0xff
 
 static SoftwareSerial ecu(ECU_RX, ECU_TX);
 static ms1_cfg_t cfg;
-static bool demo;
 static bool ecu_ok;
 static uint8_t errors;
 static uint32_t last_poll;
@@ -75,8 +72,8 @@ static void gb_send(uint8_t type, const uint8_t *payload, uint8_t len) {
 static void send_status(void) {
     link_status_t st;
     uint8_t pl[LINK_STATUS_LEN];
-    st.state = (ecu_ok || demo) ? LINK_ST_OK : LINK_ST_WAIT;
-    st.ecu = demo ? LINK_ECU_NONE : LINK_ECU_MS1;
+    st.state = ecu_ok ? LINK_ST_OK : LINK_ST_WAIT;
+    st.ecu = LINK_ECU_MS1;
     gb_send(LINK_T_STATUS, pl, link_put_status(pl, &st));
 }
 
@@ -173,50 +170,7 @@ static void print_rt(const ecu_rt_t *r) {
     Serial.println();
 }
 
-static void demo_rt(ecu_rt_t *r, uint32_t now) {
-    uint16_t phase = (uint16_t)((now / 100) % 60);
-    uint16_t ramp = phase < 30 ? phase : (uint16_t)(60 - phase);
-    r->rpm = (uint16_t)(1000 + ramp * 200);
-    r->engine = 1;
-    r->adv_x10 = (int16_t)(100 + ramp * 8);
-    r->baro_x10 = 1000;
-    r->map_x10 = (int16_t)(400 + ramp * 50);
-    r->iat_c_x10 = 300;
-    r->clt_c_x10 = 850;
-    r->tps_x10 = (int16_t)(ramp * 33);
-    r->batt_x10 = 139;
-    r->afr_x10 = (int16_t)(147 - ramp);
-    r->boost_psi_x10 = ecu_boost_psi_x10(r->map_x10, r->baro_x10);
-}
-
-static void demo_page(const tune_table_t *t) {
-    for (uint8_t r = 0; r < t->rows; r++) {
-        for (uint8_t c = 0; c < t->cols; c++) {
-            uint8_t v;
-            if (t == tune_get(TUNE_VE1)) {
-                v = (uint8_t)(40 + r * 5 + c * 2);
-            } else if (t == tune_get(TUNE_ADV1)) {
-                v = (uint8_t)(60 + c * 5 - r * 2);
-            } else {
-                v = (uint8_t)(120 - r * 4);
-            }
-            page_buf[t->val_off + r * t->cols + c] = v;
-        }
-        page_buf[t->map_off + r] = (uint8_t)(30 + r * (220 / t->rows));
-    }
-    for (uint8_t c = 0; c < t->cols; c++) {
-        page_buf[t->rpm_off + c] = (uint8_t)(6 + c * (66 / t->cols));
-    }
-}
-
 static bool read_page(const tune_table_t *t) {
-    if (demo) {
-        if (page_cached != t->page_cmd) {
-            demo_page(t);
-            page_cached = t->page_cmd;
-        }
-        return true;
-    }
     const uint8_t c[] = {MS1_CMD_PAGE, t->page_cmd, MS1_CMD_READ};
     page_cached = NO_PAGE;
     if (!ecu_cmd(c, sizeof c, page_buf, MS1_PAGE_LEN)) {
@@ -272,15 +226,11 @@ static void do_write(uint8_t id, uint8_t cell, uint8_t val) {
         send_ack(LINK_C_WRITE, id, cell, st, cur);
         return;
     }
-    if (demo) {
-        page_buf[off] = val;
-    } else {
-        const uint8_t w[] = {MS1_CMD_PAGE, t->page_cmd, 'W', off, val};
-        ecu.write(w, sizeof w);
-        if (!read_page(t)) {
-            send_ack(LINK_C_WRITE, id, cell, TUNE_E_ECU, cur);
-            return;
-        }
+    const uint8_t w[] = {MS1_CMD_PAGE, t->page_cmd, 'W', off, val};
+    ecu.write(w, sizeof w);
+    if (!read_page(t)) {
+        send_ack(LINK_C_WRITE, id, cell, TUNE_E_ECU, cur);
+        return;
     }
     Serial.print(F("write: table "));
     Serial.print(id);
@@ -299,12 +249,10 @@ static void do_burn(uint8_t id) {
         send_ack(LINK_C_BURN, id, 0, TUNE_E_TABLE, 0);
         return;
     }
-    if (!demo) {
-        const uint8_t b[] = {MS1_CMD_PAGE, t->page_cmd, 'B'};
-        ecu.write(b, sizeof b);
-        delay(BURN_WAIT_MS);
-        page_cached = NO_PAGE;
-    }
+    const uint8_t b[] = {MS1_CMD_PAGE, t->page_cmd, 'B'};
+    ecu.write(b, sizeof b);
+    delay(BURN_WAIT_MS);
+    page_cached = NO_PAGE;
     Serial.print(F("burn: table "));
     Serial.println(id);
     send_ack(LINK_C_BURN, id, 0, TUNE_OK, 0);
@@ -314,7 +262,7 @@ static void handle_cmd(void) {
     uint8_t type = cmd_type;
     uint8_t len = cmd_len;
     cmd_pending = false;
-    if (!demo && !ecu_ok) {
+    if (!ecu_ok) {
         send_ack(type, len ? cmd[0] : 0, len > 1 ? cmd[1] : 0, TUNE_E_ECU, 0);
         return;
     }
@@ -334,42 +282,34 @@ void setup() {
     pinMode(GB_OUT, OUTPUT);
     digitalWrite(GB_OUT, HIGH);
     pinMode(GB_IN, INPUT_PULLUP);
-    pinMode(DEMO_PIN, INPUT_PULLUP);
-    delay(10);
-    demo = digitalRead(DEMO_PIN) == LOW;
     ecu.begin(MS1_BAUD);
     link_parser_reset(&up);
-    Serial.println(demo ? F("megaboy nano: demo") : F("megaboy nano: ms1/extra"));
+    Serial.println(F("megaboy nano: ms1/extra"));
 }
 
 void loop() {
     uint32_t now = millis();
     ecu_rt_t rt;
 
-    if (!demo && !ecu_ok && now - last_try >= RETRY_MS) {
+    if (!ecu_ok && now - last_try >= RETRY_MS) {
         last_try = now;
         ecu_ok = ecu_connect();
         errors = 0;
     }
 
-    if ((ecu_ok || demo) && now - last_poll >= POLL_MS) {
+    if (ecu_ok && now - last_poll >= POLL_MS) {
+        static const uint8_t c_rt[] = {MS1_CMD_RT};
+        uint8_t d[MS1_RT_LEN];
         last_poll = now;
-        if (demo) {
-            demo_rt(&rt, now);
-            send_rt(&rt, LINK_F_DEMO);
-        } else {
-            static const uint8_t c_rt[] = {MS1_CMD_RT};
-            uint8_t d[MS1_RT_LEN];
-            if (ecu_cmd(c_rt, sizeof c_rt, d, MS1_RT_LEN) && ms1_decode_rt(d, MS1_RT_LEN, &cfg, &rt)) {
-                errors = 0;
-                send_rt(&rt, 0);
-                if (now - last_print >= PRINT_MS) {
-                    last_print = now;
-                    print_rt(&rt);
-                }
-            } else if (++errors >= MAX_ERRORS) {
-                ecu_ok = false;
+        if (ecu_cmd(c_rt, sizeof c_rt, d, MS1_RT_LEN) && ms1_decode_rt(d, MS1_RT_LEN, &cfg, &rt)) {
+            errors = 0;
+            send_rt(&rt, 0);
+            if (now - last_print >= PRINT_MS) {
+                last_print = now;
+                print_rt(&rt);
             }
+        } else if (++errors >= MAX_ERRORS) {
+            ecu_ok = false;
         }
     }
 
