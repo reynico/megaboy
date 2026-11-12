@@ -88,12 +88,7 @@ bool ms2_check_sig(const uint8_t *data, size_t len) {
     return len >= sl && memcmp(data, MS2_SIG, sl) == 0;
 }
 
-static int16_t f10_to_c10(int16_t f10) {
-    int32_t v = ((int32_t)f10 - 320) * 5;
-    return (int16_t)(v >= 0 ? (v + 4) / 9 : (v - 4) / 9);
-}
-
-bool ms2_decode_rt(const uint8_t *data, size_t len, ms2_rt_t *rt) {
+bool ms2_decode_rt(const uint8_t *data, size_t len, ecu_rt_t *rt) {
     if (len < MS2_RT_LEN) {
         return false;
     }
@@ -102,13 +97,11 @@ bool ms2_decode_rt(const uint8_t *data, size_t len, ms2_rt_t *rt) {
     rt->engine = data[11];
     rt->baro_x10 = (int16_t)get16(data + 16);
     rt->map_x10 = (int16_t)get16(data + 18);
-    rt->iat_c_x10 = f10_to_c10((int16_t)get16(data + 20));
-    rt->clt_c_x10 = f10_to_c10((int16_t)get16(data + 22));
+    rt->iat_c_x10 = ecu_f_to_c_x10((int16_t)get16(data + 20));
+    rt->clt_c_x10 = ecu_f_to_c_x10((int16_t)get16(data + 22));
     rt->tps_x10 = (int16_t)get16(data + 24);
     rt->batt_x10 = (int16_t)get16(data + 26);
     rt->afr_x10 = (int16_t)get16(data + 28);
-    int32_t d = (int32_t)rt->map_x10 - rt->baro_x10;
-    int32_t b = d * 145038;
-    rt->boost_psi_x10 = (int16_t)(b >= 0 ? (b + 500000) / 1000000 : (b - 500000) / 1000000);
+    rt->boost_psi_x10 = ecu_boost_psi_x10(rt->map_x10, rt->baro_x10);
     return true;
 }

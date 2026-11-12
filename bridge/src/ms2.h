@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "ecu.h"
+
 #define MS2_CAN_ID 0x00
 #define MS2_TABLE_RT 0x07
 #define MS2_TABLE_SIG 0x0f
@@ -12,20 +14,6 @@
 #define MS2_RT_LEN 30
 #define MS2_MAX_PAYLOAD 260
 #define MS2_FRAME_MAX (2 + MS2_MAX_PAYLOAD + 4)
-
-typedef struct {
-    uint16_t rpm;
-    uint8_t engine;
-    int16_t adv_x10;
-    int16_t baro_x10;
-    int16_t map_x10;
-    int16_t iat_c_x10;
-    int16_t clt_c_x10;
-    int16_t tps_x10;
-    int16_t batt_x10;
-    int16_t afr_x10;
-    int16_t boost_psi_x10;
-} ms2_rt_t;
 
 typedef enum {
     MS2_P_NEED,
@@ -49,4 +37,4 @@ ms2_pstat_t ms2_parser_feed(ms2_parser_t *p, uint8_t b, const uint8_t **payload,
 
 bool ms2_resp_ok(const uint8_t *payload, size_t len);
 bool ms2_check_sig(const uint8_t *data, size_t len);
-bool ms2_decode_rt(const uint8_t *data, size_t len, ms2_rt_t *rt);
+bool ms2_decode_rt(const uint8_t *data, size_t len, ecu_rt_t *rt);

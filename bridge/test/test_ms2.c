@@ -58,7 +58,7 @@ static void test_parse_decode(void) {
     }
     CHECK(st == MS2_P_OK);
     CHECK(ms2_resp_ok(pl, len));
-    ms2_rt_t rt;
+    ecu_rt_t rt;
     CHECK(ms2_decode_rt(pl + 1, len - 1, &rt));
     CHECK(rt.rpm == 3500);
     CHECK(rt.adv_x10 == 215);
@@ -102,7 +102,7 @@ static void test_vacuum(void) {
     d[17] = 1013 & 0xff;
     d[18] = 350 >> 8;
     d[19] = 350 & 0xff;
-    ms2_rt_t rt;
+    ecu_rt_t rt;
     CHECK(ms2_decode_rt(d, sizeof d, &rt));
     CHECK(rt.boost_psi_x10 == -96);
     CHECK(rt.clt_c_x10 == -178);

@@ -21,7 +21,7 @@ project(megaboy_bridge C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 pico_sdk_init()
 
-add_executable(bridge src/main.c src/ms2.c)
+add_executable(bridge src/main.c src/ecu.c src/ms2.c)
 target_compile_options(bridge PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(bridge pico_stdlib hardware_uart)
 pico_enable_stdio_usb(bridge 1)

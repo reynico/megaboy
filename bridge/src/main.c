@@ -67,7 +67,7 @@ static bool wait_signature(void) {
     return true;
 }
 
-static void print_rt(const ms2_rt_t *r) {
+static void print_rt(const ecu_rt_t *r) {
     printf("rpm %5u  boost %4d.%d psi  adv %3d.%d  clt %4d.%d C  iat %4d.%d C  afr %2d.%d\n",
            r->rpm,
            r->boost_psi_x10 / 10, (r->boost_psi_x10 < 0 ? -r->boost_psi_x10 : r->boost_psi_x10) % 10,
@@ -94,7 +94,7 @@ int main(void) {
         absolute_time_t next = make_timeout_time_ms(POLL_MS);
         const uint8_t *d;
         size_t l;
-        ms2_rt_t rt;
+        ecu_rt_t rt;
         if (transact(req, n, &d, &l) && ms2_decode_rt(d, l, &rt)) {
             errors = 0;
             print_rt(&rt);
