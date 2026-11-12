@@ -33,11 +33,14 @@ static const palette_color_t pals[PAL_COUNT * 4] = {
 };
 
 #define FRAMES_PER_TICK 6u
+#define MIN_DRAW_FRAMES 2u
 #define FRAMES_PER_SECOND 60u
 
 void main(void) {
     uint8_t frame = 0;
     uint8_t sec_frames = 0;
+    uint8_t since_draw = 0;
+    uint8_t draw;
 
     DISPLAY_OFF;
     if (_cpu == CGB_TYPE) {
@@ -67,11 +70,22 @@ void main(void) {
         }
         app.blink = sec_frames < 30u;
 
-        if (++frame < FRAMES_PER_TICK) {
-            continue;
+        draw = 0;
+        if (++frame >= FRAMES_PER_TICK) {
+            frame = 0;
+            app_tick();
+            draw = 1;
         }
-        frame = 0;
-        app_tick();
-        screen_tick();
+        if (since_draw < 255u) {
+            since_draw++;
+        }
+        if (app.rt_new && since_draw >= MIN_DRAW_FRAMES) {
+            draw = 1;
+        }
+        if (draw) {
+            app.rt_new = 0;
+            since_draw = 0;
+            screen_tick();
+        }
     }
 }

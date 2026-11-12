@@ -54,6 +54,12 @@ static void warn_update(void) {
     }
 }
 
+static void peak_update(void) {
+    if (app.rt.boost_psi_x10 > app.peak_x10) {
+        app.peak_x10 = app.rt.boost_psi_x10;
+    }
+}
+
 void app_init(void) {
     sim_init();
     sim_step(&app.rt);
@@ -75,6 +81,7 @@ void app_init(void) {
     app.ecu = 0;
     app.ecu_state = 0;
     app.demo = 0;
+    app.rt_new = 0;
 }
 
 uint8_t app_ecu_missing(void) {
@@ -120,9 +127,13 @@ void app_tick(void) {
     }
     was_running = running;
     warn_update();
-    if (app.rt.boost_psi_x10 > app.peak_x10) {
-        app.peak_x10 = app.rt.boost_psi_x10;
-    }
+    peak_update();
+}
+
+void app_rt_received(void) {
+    app.rt_age = 0;
+    app.rt_new = 1;
+    peak_update();
 }
 
 void app_second(void) {

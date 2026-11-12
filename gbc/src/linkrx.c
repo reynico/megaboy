@@ -46,7 +46,7 @@ static void on_rt(void) {
     app.rt.afr_x10 = l.afr_x10;
     app.rt.boost_psi_x10 = l.boost_psi_x10;
     app.demo = (l.flags & LINK_F_DEMO) != 0u;
-    app.rt_age = 0;
+    app_rt_received();
 }
 
 static void on_status(void) {

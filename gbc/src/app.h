@@ -28,6 +28,7 @@ typedef struct {
     uint8_t ecu;
     uint8_t ecu_state;
     uint8_t demo;
+    uint8_t rt_new;
 } app_t;
 
 #define LOG_BYTES_PER_S 3200u
@@ -50,3 +51,4 @@ void app_warn_ack(uint8_t id);
 void app_tick(void);
 void app_second(void);
 uint8_t app_ecu_missing(void);
+void app_rt_received(void);
