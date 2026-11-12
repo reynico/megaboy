@@ -28,7 +28,6 @@ typedef struct {
     uint8_t rt_age;
     uint8_t ecu;
     uint8_t ecu_state;
-    uint8_t demo;
     uint8_t rt_new;
 } app_t;
 

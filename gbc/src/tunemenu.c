@@ -16,7 +16,7 @@ static const char *const names[TUNE_COUNT] = {"VE TABLE 1", "SPARK TABLE 1", "AF
 static uint8_t sel;
 
 static uint8_t can_tune(void) {
-    return app.src == SRC_LINK && !app_ecu_missing() && (app.ecu == LINK_ECU_MS1 || app.demo);
+    return app.src == SRC_LINK && !app_ecu_missing() && app.ecu == LINK_ECU_MS1;
 }
 
 static void draw_cursor(void) {
@@ -28,7 +28,7 @@ static void draw_cursor(void) {
 
 static void draw_note(void) {
     if (can_tune()) {
-        ui_text(1, 11, app.demo ? "DEMO TABLES     " : "MS1 RAM, LIVE   ", app.demo ? PAL_AMBER : PAL_GREEN);
+        ui_text(1, 11, "MS1 RAM, LIVE   ", PAL_GREEN);
     } else {
         ui_text(1, 11, "NEEDS MS1 + LINK", PAL_RED);
     }

@@ -82,7 +82,6 @@ void app_init(void) {
     app.rt_age = 0;
     app.ecu = 0;
     app.ecu_state = 0;
-    app.demo = 0;
     app.rt_new = 0;
 }
 

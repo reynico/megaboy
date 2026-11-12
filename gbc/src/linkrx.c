@@ -8,7 +8,6 @@
 
 #define RX_SIZE 64u
 #define RX_MASK (RX_SIZE - 1u)
-#define LINK_F_DEMO 0x01u
 #define SC_ARM (SIOF_XFER_START | SIOF_CLOCK_EXT)
 
 static volatile uint8_t rx_buf[RX_SIZE];
@@ -54,7 +53,6 @@ static void on_rt(void) {
     app.rt.batt_x10 = l.batt_x10;
     app.rt.afr_x10 = l.afr_x10;
     app.rt.boost_psi_x10 = l.boost_psi_x10;
-    app.demo = (l.flags & LINK_F_DEMO) != 0u;
     app_rt_received();
 }
 

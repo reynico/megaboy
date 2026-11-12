@@ -34,9 +34,6 @@ static const char *data_text(void) {
     if (app.src == SRC_LOST) {
         return "STALE    ";
     }
-    if (app.demo) {
-        return "DEMO     ";
-    }
     return app_ecu_missing() ? "STALE    " : "LIVE     ";
 }
 
@@ -54,13 +51,13 @@ static const char *ecu_text(void) {
     if (app.ecu == LINK_ECU_MS1) {
         return "MS1/EXTRA";
     }
-    return app.ecu == LINK_ECU_MS2 ? "MS2/EXTRA" : "DEMO     ";
+    return app.ecu == LINK_ECU_MS2 ? "MS2/EXTRA" : "NONE     ";
 }
 
 void about_tick(void) {
     char s[5];
     hdr_tick();
-    ui_text(8, 5, data_text(), app.src == SRC_LINK && !app.demo && !app_ecu_missing() ? PAL_GREEN : PAL_AMBER);
+    ui_text(8, 5, data_text(), app.src == SRC_LINK && !app_ecu_missing() ? PAL_GREEN : PAL_AMBER);
     ui_text(8, 7, link_text(), app.src == SRC_LOST ? PAL_RED : PAL_TEXT);
     ui_text(8, 9, ecu_text(), PAL_TEXT);
     fmt_time(s, app.uptime_s);
