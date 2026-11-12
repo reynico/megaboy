@@ -54,11 +54,19 @@ def f40_to_c(raw: int) -> float:
     return (raw - 40 - 32) / 1.8
 
 
-def decode_ms1(d: bytes, kpa: tuple) -> dict:
+def ms1_rpm(d: bytes, cyl: int, two_stroke: bool) -> int:
+    itime = d[37] << 16 | d[22] << 8 | d[23]
+    if itime == 0:
+        return 0
+    rpm = round(60000000 * (1 if two_stroke else 2) / (itime * cyl))
+    return rpm if rpm > 20 else 0
+
+
+def decode_ms1(d: bytes, kpa: tuple, cyl: int = 4, two_stroke: bool = False) -> dict:
     baro = kpa[d[3]]
     mp = kpa[d[4]]
     return {
-        "rpm": d[13] * 100,
+        "rpm": ms1_rpm(d, cyl, two_stroke),
         "adv": d[24] * 0.352 - 10,
         "boost": (mp - baro) * 0.145038,
         "map": float(mp),
@@ -109,12 +117,12 @@ def open_ms2(port: serial.Serial):
     return lambda: decode(transact(port, req_read(TABLE_RT, 0, RT_LEN)))
 
 
-def open_ms1(port: serial.Serial, kpa: tuple):
+def open_ms1(port: serial.Serial, kpa: tuple, cyl: int, two_stroke: bool):
     sig = ms1_cmd(port, b"S", MS1_SIG_LEN)
     print(f"signature: {sig.decode(errors='replace')}")
     if not sig.startswith(MS1_SIGS):
         raise ValueError("unexpected signature, expected MS1/Extra")
-    return lambda: decode_ms1(ms1_cmd(port, b"R", MS1_RT_LEN), kpa)
+    return lambda: decode_ms1(ms1_cmd(port, b"R", MS1_RT_LEN), kpa, cyl, two_stroke)
 
 
 def main() -> int:
@@ -123,6 +131,8 @@ def main() -> int:
     ap.add_argument("--ecu", choices=("ms1", "ms2"), required=True)
     ap.add_argument("--baud", type=int)
     ap.add_argument("--map-sensor", choices=("4250", "4115"), default="4250", help="ms1 only")
+    ap.add_argument("--cyl", type=int, default=4, choices=range(1, 17), metavar="1-16", help="ms1 only")
+    ap.add_argument("--two-stroke", action="store_true", help="ms1 only")
     ap.add_argument("--hz", type=float, default=10.0)
     args = ap.parse_args()
 
@@ -132,7 +142,7 @@ def main() -> int:
         try:
             if args.ecu == "ms1":
                 kpa = ms1_tables.KPA4250 if args.map_sensor == "4250" else ms1_tables.KPA4115
-                poll = open_ms1(port, kpa)
+                poll = open_ms1(port, kpa, args.cyl, args.two_stroke)
             else:
                 poll = open_ms2(port)
         except (TimeoutError, ValueError) as e:
