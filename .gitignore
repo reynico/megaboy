@@ -1,0 +1,6 @@
+build/
+*.gb
+*.gbc
+*.sav
+*.uf2
+.DS_Store
