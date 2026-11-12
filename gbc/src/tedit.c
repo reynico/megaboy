@@ -190,6 +190,8 @@ static const char *err_text(uint8_t e) {
         return "VERIFY FAILED";
     case TUNE_E_ECU:
         return "NO ECU ANSWER";
+    case TUNE_E_TABLE:
+        return "UNKNOWN TABLE";
     default:
         return "BAD REQUEST";
     }
