@@ -23,6 +23,28 @@ static void test_sig(void) {
     CHECK(!ms1_check_sig((const uint8_t *)m, 32));
 }
 
+static const ms1_cfg_t cfg4250 = {MS1_MAP_4250, 4, false};
+static const ms1_cfg_t cfg4115 = {MS1_MAP_4115, 4, false};
+
+static void test_rpm(void) {
+    uint8_t d[MS1_RT_LEN] = {0};
+    ms1_cfg_t c6 = {MS1_MAP_4250, 6, false};
+    ms1_cfg_t c1t = {MS1_MAP_4250, 1, true};
+    ms1_cfg_t c0 = {MS1_MAP_4250, 0, false};
+    CHECK(ms1_rpm(d, &cfg4250) == 0);
+    d[22] = 19556 >> 8;
+    d[23] = 19556 & 0xff;
+    CHECK(ms1_rpm(d, &cfg4250) == 1534);
+    CHECK(ms1_rpm(d, &c6) == 1023);
+    CHECK(ms1_rpm(d, &c0) == 0);
+    d[22] = 0;
+    d[23] = 1;
+    CHECK(ms1_rpm(d, &c1t) == UINT16_MAX);
+    d[23] = 0;
+    d[37] = 0xff;
+    CHECK(ms1_rpm(d, &cfg4250) == 0);
+}
+
 static void test_decode(void) {
     uint8_t d[MS1_RT_LEN] = {0};
     d[2] = 1;
@@ -33,11 +55,12 @@ static void test_decode(void) {
     d[7] = 128;
     d[8] = 119;
     d[9] = 128;
-    d[13] = 35;
+    d[22] = 8571 >> 8;
+    d[23] = 8571 & 0xff;
     d[24] = 57;
     ecu_rt_t rt;
-    CHECK(!ms1_decode_rt(d, MS1_RT_LEN - 1, MS1_MAP_4250, &rt));
-    CHECK(ms1_decode_rt(d, sizeof d, MS1_MAP_4250, &rt));
+    CHECK(!ms1_decode_rt(d, MS1_RT_LEN - 1, &cfg4250, &rt));
+    CHECK(ms1_decode_rt(d, sizeof d, &cfg4250, &rt));
     CHECK(rt.rpm == 3500);
     CHECK(rt.engine == 1);
     CHECK(rt.adv_x10 == 101);
@@ -55,12 +78,13 @@ static void test_cold(void) {
     uint8_t d[MS1_RT_LEN] = {0};
     d[6] = 254;
     ecu_rt_t rt;
-    CHECK(ms1_decode_rt(d, sizeof d, MS1_MAP_4115, &rt));
+    CHECK(ms1_decode_rt(d, sizeof d, &cfg4115, &rt));
     CHECK(rt.clt_c_x10 == -400);
 }
 
 int main(void) {
     test_sig();
+    test_rpm();
     test_decode();
     test_cold();
     if (fails) {

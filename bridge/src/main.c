@@ -11,13 +11,13 @@
 #define MS2_RX_PIN 1
 #define MS2_BAUD 115200
 #define ECU_SEL_PIN 8
-#define MS1_MAP MS1_MAP_4250
 #define POLL_MS 50
 #define MS1_POLL_MS 100
 #define RESP_TIMEOUT_US 100000
 #define MS1_TIMEOUT_US 200000
 
 static ms2_parser_t parser;
+static const ms1_cfg_t ms1_cfg = {MS1_MAP_4250, 4, false};
 static bool is_ms1;
 
 static void flush_rx(void) {
@@ -114,7 +114,7 @@ static bool wait_signature(void) {
 static bool poll_rt(ecu_rt_t *rt) {
     if (is_ms1) {
         uint8_t d[MS1_RT_LEN];
-        return ms1_cmd(MS1_CMD_RT, d, sizeof d) && ms1_decode_rt(d, sizeof d, MS1_MAP, rt);
+        return ms1_cmd(MS1_CMD_RT, d, sizeof d) && ms1_decode_rt(d, sizeof d, &ms1_cfg, rt);
     }
     uint8_t req[MS2_FRAME_MAX];
     size_t n = ms2_req_read(req, MS2_TABLE_RT, 0, MS2_RT_LEN);

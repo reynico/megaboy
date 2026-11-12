@@ -22,12 +22,25 @@ static int16_t temp_c_x10(uint16_t f_plus_40) {
     return ecu_f_to_c_x10(((int32_t)f_plus_40 - 40) * 10);
 }
 
-bool ms1_decode_rt(const uint8_t *data, size_t len, ms1_map_t map, ecu_rt_t *rt) {
+uint16_t ms1_rpm(const uint8_t *data, const ms1_cfg_t *cfg) {
+    uint32_t itime = (uint32_t)data[37] << 16 | (uint32_t)data[22] << 8 | data[23];
+    if (itime == 0 || cfg->cyl == 0) {
+        return 0;
+    }
+    uint64_t den = (uint64_t)itime * cfg->cyl;
+    uint64_t rpm = ((cfg->two_stroke ? 60000000ull : 120000000ull) + den / 2) / den;
+    if (rpm <= 20) {
+        return 0;
+    }
+    return rpm > UINT16_MAX ? UINT16_MAX : (uint16_t)rpm;
+}
+
+bool ms1_decode_rt(const uint8_t *data, size_t len, const ms1_cfg_t *cfg, ecu_rt_t *rt) {
     if (len < MS1_RT_LEN) {
         return false;
     }
-    const uint16_t *kpa = map == MS1_MAP_4115 ? ms1_kpa4115 : ms1_kpa4250;
-    rt->rpm = (uint16_t)(data[13] * 100u);
+    const uint16_t *kpa = cfg->map == MS1_MAP_4115 ? ms1_kpa4115 : ms1_kpa4250;
+    rt->rpm = ms1_rpm(data, cfg);
     rt->engine = data[2];
     rt->adv_x10 = (int16_t)((data[24] * 352 + 50) / 100 - 100);
     rt->baro_x10 = (int16_t)(kpa[data[3]] * 10);

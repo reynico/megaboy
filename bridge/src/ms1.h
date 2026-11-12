@@ -18,4 +18,11 @@ typedef enum {
 } ms1_map_t;
 
 bool ms1_check_sig(const uint8_t *data, size_t len);
-bool ms1_decode_rt(const uint8_t *data, size_t len, ms1_map_t map, ecu_rt_t *rt);
+typedef struct {
+    ms1_map_t map;
+    uint8_t cyl;
+    bool two_stroke;
+} ms1_cfg_t;
+
+uint16_t ms1_rpm(const uint8_t *data, const ms1_cfg_t *cfg);
+bool ms1_decode_rt(const uint8_t *data, size_t len, const ms1_cfg_t *cfg, ecu_rt_t *rt);
