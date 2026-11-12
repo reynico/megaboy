@@ -1,12 +1,15 @@
 #include "dash.h"
 
+#include <gb/gb.h>
+
+#include "app.h"
 #include "fmt.h"
 #include "tiles.h"
 #include "ui.h"
 
-void dash_draw_static(void) {
+void dash_enter(void) {
     ui_clear();
-    ui_text(0, 0, "MS2 OK", PAL_GREEN);
+    ui_text(0, 0, "SIM", PAL_AMBER);
     ui_divider(1);
     ui_text(1, 2, "RPM", PAL_DIM);
     ui_text(11, 2, "AFR", PAL_DIM);
@@ -23,20 +26,9 @@ void dash_draw_static(void) {
     ui_text(11, 16, "MAP", PAL_DIM);
 }
 
-void dash_update(const rt_t *rt, int16_t peak_x10, uint8_t blink, uint16_t rec_s) {
-    char s[9];
-
-    ui_tile(10, 0, blink ? T_DOT : T_SPACE, PAL_RED);
-    s[0] = 'R';
-    s[1] = 'E';
-    s[2] = 'C';
-    s[3] = ' ';
-    s[4] = (char)('0' + (rec_s / 600u) % 10u);
-    s[5] = (char)('0' + (rec_s / 60u) % 10u);
-    s[6] = ':';
-    s[7] = (char)('0' + (rec_s % 60u) / 10u);
-    s[8] = (char)('0' + rec_s % 10u);
-    ui_textn(11, 0, s, 9, PAL_TEXT);
+void dash_tick(void) {
+    const rt_t *rt = &app.rt;
+    char s[5];
 
     fmt_int(s, 4, (int16_t)(rt->rpm > 9999u ? 9999u : rt->rpm), 0);
     ui_big(1, 3, s, 4, rt->rpm >= 6800u ? PAL_RED : PAL_TEXT);
@@ -46,7 +38,7 @@ void dash_update(const rt_t *rt, int16_t peak_x10, uint8_t blink, uint16_t rec_s
 
     fmt_x10(s, 5, rt->boost_psi_x10, 1);
     ui_big(1, 8, s, 5, rt->boost_psi_x10 >= 0 ? PAL_AMBER : PAL_BLUE);
-    fmt_x10(s, 5, peak_x10, 1);
+    fmt_x10(s, 5, app.peak_x10, 1);
     ui_textn(13, 8, s, 5, PAL_AMBER);
     ui_bar(1, 10, 18, rt->boost_psi_x10, 250);
 
@@ -62,4 +54,10 @@ void dash_update(const rt_t *rt, int16_t peak_x10, uint8_t blink, uint16_t rec_s
     ui_textn(5, 16, s, 4, PAL_TEXT);
     fmt_int(s, 4, fmt_round_x10(rt->map_x10), 0);
     ui_textn(15, 16, s, 4, PAL_TEXT);
+}
+
+void dash_input(uint8_t pressed) {
+    if (pressed & J_B) {
+        app.peak_x10 = 0;
+    }
 }
