@@ -17,6 +17,7 @@ enum {
     SCR_WARN,
     SCR_TUNE,
     SCR_ABOUT,
+    SCR_TEDIT,
     SCR_COUNT
 };
 

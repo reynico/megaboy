@@ -9,6 +9,7 @@
 #include "logpage.h"
 #include "menu.h"
 #include "settings.h"
+#include "tedit.h"
 #include "tunemenu.h"
 #include "warn.h"
 
@@ -21,6 +22,7 @@ static const screen_t screens[SCR_COUNT] = {
     {warn_enter, warn_tick, warn_input},
     {tunemenu_enter, tunemenu_tick, tunemenu_input},
     {about_enter, about_tick, about_input},
+    {tedit_enter, tedit_tick, tedit_input},
 };
 
 static const uint8_t pages[] = {SCR_DASH, SCR_BOOST, SCR_LOG};
