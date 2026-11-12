@@ -37,7 +37,7 @@ def find(dirs: list[Path], name: str) -> Path:
 def c_array(name: str, vals: list[int]) -> str:
     rows = [", ".join(f"{v:4d}" for v in vals[i : i + 16]) for i in range(0, 256, 16)]
     body = ",\n    ".join(rows)
-    return f"const uint16_t ms1_{name}[256] = {{\n    {body},\n}};\n"
+    return f"const uint16_t ms1_{name}[256] MS1_TABLE = {{\n    {body},\n}};\n"
 
 
 def main() -> int:

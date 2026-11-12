@@ -41,14 +41,14 @@ uint16_t ms1_map_kpa(ms1_map_t map) {
 static int16_t kpa_x10(ms1_map_t map, uint8_t adc) {
     switch (map) {
     case MS1_MAP_115:
-        return (int16_t)(ms1_kpa4115[adc] * 10);
+        return (int16_t)(MS1_RD(ms1_kpa4115, adc) * 10);
     case MS1_MAP_300:
-        return (int16_t)(((int64_t)adc * 12136750 + 18569228 + 500000) / 1000000);
+        return (int16_t)(((uint32_t)adc * 12136750u + 18569228u + 500000u) / 1000000u);
     case MS1_MAP_400:
-        return (int16_t)(((int64_t)adc * 16197783 + 34776640 + 500000) / 1000000);
+        return (int16_t)(((uint32_t)adc * 16197783u + 34776640u + 500000u) / 1000000u);
     case MS1_MAP_250:
     default:
-        return (int16_t)(ms1_kpa4250[adc] * 10);
+        return (int16_t)(MS1_RD(ms1_kpa4250, adc) * 10);
     }
 }
 
@@ -57,8 +57,8 @@ uint16_t ms1_rpm(const uint8_t *data, const ms1_cfg_t *cfg) {
     if (itime == 0 || cfg->cyl == 0) {
         return 0;
     }
-    uint64_t den = (uint64_t)itime * cfg->cyl;
-    uint64_t rpm = ((cfg->two_stroke ? 60000000ull : 120000000ull) + den / 2) / den;
+    uint32_t den = itime * cfg->cyl;
+    uint32_t rpm = ((cfg->two_stroke ? 60000000u : 120000000u) + den / 2) / den;
     if (rpm <= 20) {
         return 0;
     }
@@ -71,14 +71,14 @@ bool ms1_decode_rt(const uint8_t *data, size_t len, const ms1_cfg_t *cfg, ecu_rt
     }
     rt->rpm = ms1_rpm(data, cfg);
     rt->engine = data[2];
-    rt->adv_x10 = (int16_t)((data[24] * 352 + 50) / 100 - 100);
+    rt->adv_x10 = (int16_t)(((int32_t)data[24] * 352 + 50) / 100 - 100);
     rt->baro_x10 = kpa_x10(cfg->map, data[3]);
     rt->map_x10 = kpa_x10(cfg->map, data[4]);
-    rt->iat_c_x10 = temp_c_x10(ms1_mat[data[5]]);
-    rt->clt_c_x10 = temp_c_x10(ms1_therm[data[6]]);
-    rt->tps_x10 = (int16_t)(ms1_tps[data[7]] * 10);
-    rt->batt_x10 = (int16_t)((data[8] * 300 + 127) / 255);
-    rt->afr_x10 = (int16_t)(100 + (data[9] * 100 + 127) / 255);
+    rt->iat_c_x10 = temp_c_x10(MS1_RD(ms1_mat, data[5]));
+    rt->clt_c_x10 = temp_c_x10(MS1_RD(ms1_therm, data[6]));
+    rt->tps_x10 = (int16_t)(MS1_RD(ms1_tps, data[7]) * 10);
+    rt->batt_x10 = (int16_t)(((int32_t)data[8] * 300 + 127) / 255);
+    rt->afr_x10 = (int16_t)(100 + ((int32_t)data[9] * 100 + 127) / 255);
     rt->boost_psi_x10 = ecu_boost_psi_x10(rt->map_x10, rt->baro_x10);
     return true;
 }
