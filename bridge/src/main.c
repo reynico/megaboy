@@ -14,10 +14,10 @@
 #define POLL_MS 50
 #define MS1_POLL_MS 100
 #define RESP_TIMEOUT_US 100000
-#define MS1_TIMEOUT_US 200000
+#define MS1_TIMEOUT_US 400000
 
 static ms2_parser_t parser;
-static const ms1_cfg_t ms1_cfg = {MS1_MAP_4250, 4, false};
+static ms1_cfg_t ms1_cfg;
 static bool is_ms1;
 
 static void flush_rx(void) {
@@ -88,6 +88,15 @@ static bool ms1_signature(void) {
         return false;
     }
     printf("signature: %.*s\n", (int)sizeof sig, sig);
+
+    uint8_t page[MS1_PAGE_LEN];
+    uart_putc_raw(MS2_UART, MS1_CMD_PAGE);
+    uart_putc_raw(MS2_UART, MS1_CONFIG_PAGE);
+    if (!ms1_cmd(MS1_CMD_READ, page, sizeof page) || !ms1_parse_config(page, sizeof page, &ms1_cfg)) {
+        return false;
+    }
+    printf("config: %u cyl, %s-stroke, map %u kPa\n", ms1_cfg.cyl, ms1_cfg.two_stroke ? "two" : "four",
+           ms1_map_kpa(ms1_cfg.map));
     return true;
 }
 
