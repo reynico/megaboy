@@ -6,3 +6,4 @@ build/
 .DS_Store
 projectCfg/
 CurrentTune.msq
+__pycache__/
