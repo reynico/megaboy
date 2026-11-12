@@ -14,8 +14,9 @@ extern "C" {
 #define DEMO_PIN 5
 
 #define GB_HALF_US 15
-#define GB_GAP_US 300
-#define POLL_MS 100
+#define GB_GAP_US 150
+#define POLL_MS 40
+#define PRINT_MS 500
 #define STATUS_MS 1000
 #define RETRY_MS 1000
 #define ECU_TIMEOUT_MS 400
@@ -30,6 +31,7 @@ static uint8_t errors;
 static uint32_t last_poll;
 static uint32_t last_status;
 static uint32_t last_try;
+static uint32_t last_print;
 
 static uint8_t gb_xfer(uint8_t out) {
     uint8_t in = 0;
@@ -204,7 +206,10 @@ void loop() {
             if (ecu_cmd(c_rt, sizeof c_rt, d, MS1_RT_LEN) && ms1_decode_rt(d, MS1_RT_LEN, &cfg, &rt)) {
                 errors = 0;
                 send_rt(&rt, 0);
-                print_rt(&rt);
+                if (now - last_print >= PRINT_MS) {
+                    last_print = now;
+                    print_rt(&rt);
+                }
             } else if (++errors >= MAX_ERRORS) {
                 ecu_ok = false;
             }
