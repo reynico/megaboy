@@ -14,11 +14,19 @@ static volatile uint8_t rx_buf[RX_SIZE];
 static volatile uint8_t rx_head;
 static uint8_t rx_tail;
 static link_parser_t parser;
+static uint8_t tx_buf[LINK_FRAME_MAX];
+static volatile uint8_t tx_pos;
+static volatile uint8_t tx_len;
 
 static void sio_isr(void) {
     rx_buf[rx_head & RX_MASK] = SB_REG;
     rx_head++;
-    SB_REG = 0;
+    if (tx_pos < tx_len) {
+        SB_REG = tx_buf[tx_pos];
+        tx_pos++;
+    } else {
+        SB_REG = 0;
+    }
     SC_REG = SC_ARM;
 }
 
@@ -77,4 +85,17 @@ void linkrx_poll(void) {
             on_frame();
         }
     }
+}
+
+uint8_t linkrx_send(uint8_t type, const uint8_t *payload, uint8_t len) {
+    uint8_t n;
+    if (tx_pos < tx_len || len > LINK_MAX_PAYLOAD) {
+        return 0;
+    }
+    CRITICAL {
+        n = link_encode(tx_buf, type, payload, len);
+        tx_pos = 0;
+        tx_len = n;
+    }
+    return 1;
 }
