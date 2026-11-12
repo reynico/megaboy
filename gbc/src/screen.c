@@ -2,6 +2,7 @@
 
 #include <gb/gb.h>
 
+#include "about.h"
 #include "app.h"
 #include "boost.h"
 #include "dash.h"
@@ -19,6 +20,7 @@ static const screen_t screens[SCR_COUNT] = {
     {settings_enter, settings_tick, settings_input},
     {warn_enter, warn_tick, warn_input},
     {tune_enter, tune_tick, tune_input},
+    {about_enter, about_tick, about_input},
 };
 
 static const uint8_t pages[] = {SCR_DASH, SCR_BOOST, SCR_LOG};
