@@ -1,6 +1,7 @@
 #include "app.h"
 
 #include "sim.h"
+#include "tdata.h"
 
 app_t app;
 static uint8_t was_running;
@@ -129,6 +130,7 @@ void app_tick(void) {
     was_running = running;
     warn_update();
     peak_update();
+    td_tick();
 }
 
 void app_rt_received(void) {

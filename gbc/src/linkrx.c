@@ -4,6 +4,7 @@
 
 #include "app.h"
 #include "link.h"
+#include "tdata.h"
 
 #define RX_SIZE 64u
 #define RX_MASK (RX_SIZE - 1u)
@@ -69,6 +70,10 @@ static void on_frame(void) {
         on_rt();
     } else if (parser.type == LINK_T_STATUS && parser.len == LINK_STATUS_LEN) {
         on_status();
+    } else if (parser.type == LINK_T_TABLE) {
+        td_on_table(parser.buf, parser.len);
+    } else if (parser.type == LINK_T_ACK && parser.len == LINK_ACK_LEN) {
+        td_on_ack(parser.buf);
     } else {
         return;
     }
