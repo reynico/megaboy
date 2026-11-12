@@ -13,6 +13,9 @@ SIG = b"MS2Extra comms332m2"
 MS1_SIGS = (b"MSnS-extra format ", b"MS1/Extra format ")
 MS1_SIG_LEN = 32
 MS1_RT_LEN = 39
+MS1_PAGE_LEN = 189
+MS1_CONFIG1 = 182
+MS1_MAP_KPA = (115, 250, 300, 400)
 TABLE_RT = 0x07
 TABLE_SIG = 0x0F
 RT_LEN = 30
@@ -60,6 +63,21 @@ def ms1_rpm(d: bytes, cyl: int, two_stroke: bool) -> int:
         return 0
     rpm = round(60000000 * (1 if two_stroke else 2) / (itime * cyl))
     return rpm if rpm > 20 else 0
+
+
+def ms1_kpa(map_type: int) -> tuple:
+    if map_type == 0:
+        return ms1_tables.KPA4115
+    if map_type == 1:
+        return ms1_tables.KPA4250
+    if map_type == 2:
+        return tuple((a + 1.53) * 1.213675 for a in range(256))
+    return tuple((a + 2.147) * 1.6197783 for a in range(256))
+
+
+def ms1_config(page: bytes) -> dict:
+    c = page[MS1_CONFIG1]
+    return {"cyl": (c >> 4) + 1, "two_stroke": bool(c & 0x04), "map_type": c & 0x03}
 
 
 def decode_ms1(d: bytes, kpa: tuple, cyl: int = 4, two_stroke: bool = False) -> dict:
@@ -117,12 +135,19 @@ def open_ms2(port: serial.Serial):
     return lambda: decode(transact(port, req_read(TABLE_RT, 0, RT_LEN)))
 
 
-def open_ms1(port: serial.Serial, kpa: tuple, cyl: int, two_stroke: bool):
+def open_ms1(port: serial.Serial):
     sig = ms1_cmd(port, b"S", MS1_SIG_LEN)
     print(f"signature: {sig.decode(errors='replace')}")
     if not sig.startswith(MS1_SIGS):
         raise ValueError("unexpected signature, expected MS1/Extra")
-    return lambda: decode_ms1(ms1_cmd(port, b"R", MS1_RT_LEN), kpa, cyl, two_stroke)
+    port.write(b"P\x01")
+    cfg = ms1_config(ms1_cmd(port, b"V", MS1_PAGE_LEN))
+    print(
+        f"config: {cfg['cyl']} cyl, {'two' if cfg['two_stroke'] else 'four'}-stroke, "
+        f"map {MS1_MAP_KPA[cfg['map_type']]} kPa"
+    )
+    kpa = ms1_kpa(cfg["map_type"])
+    return lambda: decode_ms1(ms1_cmd(port, b"R", MS1_RT_LEN), kpa, cfg["cyl"], cfg["two_stroke"])
 
 
 def main() -> int:
@@ -130,9 +155,6 @@ def main() -> int:
     ap.add_argument("port")
     ap.add_argument("--ecu", choices=("ms1", "ms2"), required=True)
     ap.add_argument("--baud", type=int)
-    ap.add_argument("--map-sensor", choices=("4250", "4115"), default="4250", help="ms1 only")
-    ap.add_argument("--cyl", type=int, default=4, choices=range(1, 17), metavar="1-16", help="ms1 only")
-    ap.add_argument("--two-stroke", action="store_true", help="ms1 only")
     ap.add_argument("--hz", type=float, default=10.0)
     args = ap.parse_args()
 
@@ -141,8 +163,7 @@ def main() -> int:
         time.sleep(0.2)
         try:
             if args.ecu == "ms1":
-                kpa = ms1_tables.KPA4250 if args.map_sensor == "4250" else ms1_tables.KPA4115
-                poll = open_ms1(port, kpa, args.cyl, args.two_stroke)
+                poll = open_ms1(port)
             else:
                 poll = open_ms2(port)
         except (TimeoutError, ValueError) as e:
