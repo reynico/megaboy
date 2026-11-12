@@ -4,3 +4,5 @@ build/
 *.sav
 *.uf2
 .DS_Store
+projectCfg/
+CurrentTune.msq
