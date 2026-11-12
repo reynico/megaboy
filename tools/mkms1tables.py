@@ -43,7 +43,7 @@ def c_array(name: str, vals: list[int]) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Generate MS1/Extra conversion tables from TunerStudio inc files")
     ap.add_argument("--inc", action="append", type=Path, default=[], help="extra inc dir, later wins")
-    ap.add_argument("--c", type=Path, default=Path("bridge/src/ms1_tables.c"))
+    ap.add_argument("--c", type=Path, default=Path("common/ms1_tables.c"))
     ap.add_argument("--py", type=Path, default=Path("tools/ms1_tables.py"))
     args = ap.parse_args()
 
