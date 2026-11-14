@@ -21,12 +21,21 @@ project(megaboy_bridge C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 pico_sdk_init()
 
+FetchContent_Declare(fatfs
+    URL https://elm-chan.org/fsw/ff/arc/ff15a.zip
+    URL_HASH SHA256=74737b1cafa1a67a3f722dd0d1a44767c5b54d37b6300ad3825a904cbe88fc3c
+    SOURCE_SUBDIR none)
+FetchContent_MakeAvailable(fatfs)
+set(FATFS ${fatfs_SOURCE_DIR}/source)
+set_source_files_properties(${FATFS}/ff.c PROPERTIES COMPILE_OPTIONS "-w")
+
 set(COMMON ${CMAKE_CURRENT_LIST_DIR}/../common)
-add_executable(bridge src/main.c ${COMMON}/ecu.c ${COMMON}/link.c ${COMMON}/ms1.c ${COMMON}/ms1_tables.c
+add_executable(bridge src/main.c src/sdspi.c ${FATFS}/ff.c ${COMMON}/ecu.c ${COMMON}/link.c ${COMMON}/ms1.c ${COMMON}/ms1_tables.c
     ${COMMON}/ms2.c ${COMMON}/rtc.c ${COMMON}/tune.c)
-target_include_directories(bridge PRIVATE ${COMMON})
+target_include_directories(bridge PRIVATE ${COMMON} ${FATFS})
+target_compile_options(bridge PRIVATE -include ${CMAKE_CURRENT_LIST_DIR}/src/fatfs/ffconf.h)
 target_compile_options(bridge PRIVATE -Wall -Wextra -Werror)
-target_link_libraries(bridge pico_stdlib hardware_uart hardware_flash hardware_sync hardware_i2c)
+target_link_libraries(bridge pico_stdlib hardware_uart hardware_flash hardware_sync hardware_i2c hardware_spi)
 pico_enable_stdio_usb(bridge 1)
 pico_enable_stdio_uart(bridge 0)
 pico_add_extra_outputs(bridge)

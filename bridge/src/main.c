@@ -7,6 +7,8 @@
 #include "hardware/uart.h"
 #include "pico/stdlib.h"
 
+#include "ff.h"
+
 #include "link.h"
 #include "ms1.h"
 #include "ms2.h"
@@ -156,6 +158,14 @@ static void rtc_poll(void) {
         return;
     }
     clk_state = (st & RTC_OSF) || !rtc_decode(regs, &clk) ? LINK_CLK_UNSET : LINK_CLK_OK;
+}
+
+DWORD get_fattime(void) {
+    if (clk_state != LINK_CLK_OK) {
+        return (DWORD)(FF_NORTC_YEAR - 1980) << 25 | (DWORD)FF_NORTC_MON << 21 | (DWORD)FF_NORTC_MDAY << 16;
+    }
+    return (DWORD)(clk.yy + 20u) << 25 | (DWORD)clk.mo << 21 | (DWORD)clk.dd << 16 | (DWORD)clk.hh << 11 |
+           (DWORD)clk.mi << 5 | (DWORD)(clk.ss / 2u);
 }
 
 static void print_clock(void) {
