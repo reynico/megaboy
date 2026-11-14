@@ -77,7 +77,10 @@ static uint8_t cmd(uint8_t c, uint32_t arg) {
         }
     }
     deselect();
-    if (!select_card()) {
+    if (c == CMD0) {
+        gpio_put(SD_CS, 0);
+        xfer(0xff);
+    } else if (!select_card()) {
         return 0xff;
     }
     xfer(0x40 | c);
@@ -137,16 +140,12 @@ DSTATUS disk_initialize(BYTE pdrv) {
     gpio_init(SD_CS);
     gpio_set_dir(SD_CS, GPIO_OUT);
     gpio_put(SD_CS, 1);
-    uint8_t idle = 0;
     for (int i = 0; i < 10; i++) {
-        idle = xfer(0xff);
+        xfer(0xff);
     }
 
     status = STA_NOINIT;
     block_addr = false;
-    if (idle != 0xff) {
-        return status;
-    }
     ready_ms = INIT_READY_MS;
     end = make_timeout_time_ms(INIT_TIMEOUT_MS);
     if (cmd(CMD0, 0) == R1_IDLE) {
