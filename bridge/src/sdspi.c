@@ -30,9 +30,11 @@
 #define INIT_TIMEOUT_MS 1000
 #define READ_TIMEOUT_MS 200
 #define BUSY_TIMEOUT_MS 500
+#define INIT_READY_MS 50
 
 static volatile DSTATUS status = STA_NOINIT;
 static bool block_addr;
+static uint32_t ready_ms = BUSY_TIMEOUT_MS;
 
 static uint8_t xfer(uint8_t b) {
     uint8_t r;
@@ -58,7 +60,7 @@ static void deselect(void) {
 static bool select_card(void) {
     gpio_put(SD_CS, 0);
     xfer(0xff);
-    if (wait_ready(BUSY_TIMEOUT_MS)) {
+    if (wait_ready(ready_ms)) {
         return true;
     }
     deselect();
@@ -135,12 +137,17 @@ DSTATUS disk_initialize(BYTE pdrv) {
     gpio_init(SD_CS);
     gpio_set_dir(SD_CS, GPIO_OUT);
     gpio_put(SD_CS, 1);
+    uint8_t idle = 0;
     for (int i = 0; i < 10; i++) {
-        xfer(0xff);
+        idle = xfer(0xff);
     }
 
     status = STA_NOINIT;
     block_addr = false;
+    if (idle != 0xff) {
+        return status;
+    }
+    ready_ms = INIT_READY_MS;
     end = make_timeout_time_ms(INIT_TIMEOUT_MS);
     if (cmd(CMD0, 0) == R1_IDLE) {
         if (cmd(CMD8, 0x1aa) == R1_IDLE) {
@@ -167,6 +174,7 @@ DSTATUS disk_initialize(BYTE pdrv) {
         }
     }
     deselect();
+    ready_ms = BUSY_TIMEOUT_MS;
     if (status == 0) {
         spi_set_baudrate(SD_SPI, SD_RUN_HZ);
     }
