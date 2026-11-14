@@ -80,8 +80,48 @@ static void test_sim(void) {
     CHECK(bmin < -80 && bmin >= -100);
 }
 
+static void ref_fit(char *out, int w, const char *s) {
+    int n = (int)strlen(s);
+    if (n > w) {
+        memset(out, '*', (size_t)w);
+        return;
+    }
+    memset(out, ' ', (size_t)(w - n));
+    memcpy(out + w - n, s, (size_t)n);
+}
+
+static void test_fmt_all(void) {
+    char got[8];
+    char want[8];
+    char s[16];
+    int bad_int = 0;
+    int bad_x10 = 0;
+    int bad_round = 0;
+    for (long i = -32768; i <= 32767; i++) {
+        int16_t v = (int16_t)i;
+        long a = i < 0 ? -i : i;
+        long r = i >= 0 ? (i + 5) / 10 : (i - 5) / 10;
+
+        fmt_int(got, 6, v, 'C');
+        snprintf(s, sizeof s, "%ldC", i);
+        ref_fit(want, 6, s);
+        bad_int += memcmp(got, want, 6) != 0;
+
+        fmt_x10(got, 7, v, 1);
+        snprintf(s, sizeof s, "%s%ld.%ld", i < 0 ? "-" : "+", a / 10, a % 10);
+        ref_fit(want, 7, s);
+        bad_x10 += memcmp(got, want, 7) != 0;
+
+        bad_round += fmt_round_x10(v) != r;
+    }
+    CHECK(bad_int == 0);
+    CHECK(bad_x10 == 0);
+    CHECK(bad_round == 0);
+}
+
 int main(void) {
     test_fmt();
+    test_fmt_all();
     test_sim();
     if (fails) {
         fprintf(stderr, "%d failures\n", fails);
