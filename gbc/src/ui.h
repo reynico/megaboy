@@ -2,7 +2,10 @@
 
 #include <stdint.h>
 
+#define UI_SLOTS 12u
+
 void ui_clear(void);
+uint8_t ui_changed(uint8_t slot, int16_t v, uint8_t pal);
 void ui_attr(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t pal);
 void ui_tile(uint8_t x, uint8_t y, uint8_t tile, uint8_t pal);
 void ui_textn(uint8_t x, uint8_t y, const char *s, uint8_t n, uint8_t pal);

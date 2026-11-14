@@ -13,6 +13,17 @@
 static uint8_t row[COLS];
 static uint8_t sh_tile[ROWS][COLS];
 static uint8_t sh_attr[ROWS][COLS];
+static int16_t slot_val[UI_SLOTS];
+static uint8_t slot_pal[UI_SLOTS];
+
+uint8_t ui_changed(uint8_t slot, int16_t v, uint8_t pal) {
+    if (slot_val[slot] == v && slot_pal[slot] == pal) {
+        return 0;
+    }
+    slot_val[slot] = v;
+    slot_pal[slot] = pal;
+    return 1;
+}
 
 static void put_row(uint8_t x, uint8_t y, uint8_t n, const uint8_t *src, uint8_t *sh) {
     uint8_t first = 0;
@@ -71,6 +82,7 @@ void ui_clear(void) {
     uint8_t y;
     memset(row, T_SPACE, sizeof row);
     memset(sh_tile, T_SPACE, sizeof sh_tile);
+    memset(slot_pal, 0xff, sizeof slot_pal);
     for (y = 0; y < ROWS; y++) {
         set_bkg_tiles(0, y, COLS, 1, row);
     }
