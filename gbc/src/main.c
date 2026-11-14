@@ -36,6 +36,7 @@ static const palette_color_t pals[PAL_COUNT * 4] = {
 #define FRAMES_PER_TICK 6u
 #define MIN_DRAW_FRAMES 2u
 #define FRAMES_PER_SECOND 60u
+#define MAX_CATCH_UP 8u
 
 void main(void) {
     uint8_t frame = 0;
@@ -43,6 +44,9 @@ void main(void) {
     uint8_t since_draw = 0;
     uint8_t draw;
     uint8_t pressed;
+    uint8_t elapsed;
+    uint8_t i;
+    uint16_t last;
 
     DISPLAY_OFF;
     if (_cpu == CGB_TYPE) {
@@ -62,31 +66,39 @@ void main(void) {
     SHOW_BKG;
     DISPLAY_ON;
 
+    last = sys_time;
     while (1) {
         wait_vbl_done();
+        elapsed = (uint8_t)(sys_time - last);
+        last += elapsed;
+        if (elapsed > MAX_CATCH_UP) {
+            elapsed = MAX_CATCH_UP;
+        }
         linkrx_poll();
-        sound_tick();
+        for (i = 0; i < elapsed; i++) {
+            sound_tick();
+        }
         pressed = input_poll();
         if (app.set.key_snd) {
             sound_key(pressed);
         }
         screen_input(pressed);
 
-        if (++sec_frames >= FRAMES_PER_SECOND) {
-            sec_frames = 0;
+        sec_frames += elapsed;
+        if (sec_frames >= FRAMES_PER_SECOND) {
+            sec_frames -= FRAMES_PER_SECOND;
             app_second();
         }
         app.blink = sec_frames < 30u;
 
         draw = 0;
-        if (++frame >= FRAMES_PER_TICK) {
-            frame = 0;
+        frame += elapsed;
+        if (frame >= FRAMES_PER_TICK) {
+            frame = frame >= 2u * FRAMES_PER_TICK ? 0u : (uint8_t)(frame - FRAMES_PER_TICK);
             app_tick();
             draw = 1;
         }
-        if (since_draw < 255u) {
-            since_draw++;
-        }
+        since_draw = since_draw > 255u - MAX_CATCH_UP ? 255u : (uint8_t)(since_draw + elapsed);
         if (app.rt_new && since_draw >= MIN_DRAW_FRAMES) {
             draw = 1;
         }
