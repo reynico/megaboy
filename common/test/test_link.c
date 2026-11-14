@@ -89,12 +89,13 @@ static void test_noise_and_errors(void) {
 }
 
 static void test_log_roundtrip(void) {
-    link_log_t a = {LINK_LOG_REC, 1234, 3599, 0x01234567u, 20};
+    link_log_t a = {LINK_LOG_REC, 1234, 3599, 0x01234567u, 20, 1, {26, 11, 14, 9, 5, 7}};
     link_log_t b;
     uint8_t pl[LINK_LOG_LEN];
     CHECK(link_put_log(pl, &a) == LINK_LOG_LEN);
     link_get_log(pl, &b);
     CHECK(b.state == a.state && b.num == a.num && b.secs == a.secs && b.bytes == a.bytes && b.hz == a.hz);
+    CHECK(b.dated == 1 && b.start.mo == 11 && b.start.dd == 14 && b.start.hh == 9 && b.start.ss == 7);
     CHECK(pl[5] == 0x67 && pl[8] == 0x01);
 }
 

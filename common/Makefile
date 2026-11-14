@@ -17,9 +17,9 @@ build/test_ms2: ecu.c ms2.c test/test_ms2.c $(wildcard *.h)
 	@mkdir -p build
 	$(CC) $(CFLAGS) ecu.c ms2.c test/test_ms2.c -o $@
 
-build/test_link: link.c test/test_link.c link.h rtc.h
+build/test_link: link.c rtc.c test/test_link.c link.h rtc.h
 	@mkdir -p build
-	$(CC) $(CFLAGS) link.c test/test_link.c -o $@
+	$(CC) $(CFLAGS) link.c rtc.c test/test_link.c -o $@
 
 build/test_tune: tune.c test/test_tune.c tune.h
 	@mkdir -p build

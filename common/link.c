@@ -94,6 +94,8 @@ uint8_t link_put_log(uint8_t *out, const link_log_t *l) {
     put16(out + 5, (uint16_t)l->bytes);
     put16(out + 7, (uint16_t)(l->bytes >> 16));
     out[9] = l->hz;
+    out[10] = l->dated;
+    link_put_time(out + 11, &l->start);
     return LINK_LOG_LEN;
 }
 
@@ -103,6 +105,8 @@ void link_get_log(const uint8_t *in, link_log_t *l) {
     l->secs = get16(in + 3);
     l->bytes = (uint32_t)get16(in + 5) | (uint32_t)get16(in + 7) << 16;
     l->hz = in[9];
+    l->dated = in[10];
+    link_get_time(in + 11, &l->start);
 }
 
 void link_parser_reset(link_parser_t *p) {

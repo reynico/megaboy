@@ -32,7 +32,7 @@
 #define LINK_STATUS_LEN 2u
 #define LINK_TIME_LEN 7u
 #define LINK_TIME_SET_LEN 6u
-#define LINK_LOG_LEN 10u
+#define LINK_LOG_LEN 17u
 
 #define LINK_ECU_NONE 0u
 #define LINK_ECU_MS1 1u
@@ -76,6 +76,8 @@ typedef struct {
     uint16_t secs;
     uint32_t bytes;
     uint8_t hz;
+    uint8_t dated;
+    rtc_time_t start;
 } link_log_t;
 
 typedef struct {
