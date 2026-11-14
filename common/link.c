@@ -68,6 +68,25 @@ void link_get_status(const uint8_t *in, link_status_t *st) {
     st->ecu = in[1];
 }
 
+uint8_t link_put_time(uint8_t *out, const rtc_time_t *t) {
+    out[0] = t->yy;
+    out[1] = t->mo;
+    out[2] = t->dd;
+    out[3] = t->hh;
+    out[4] = t->mi;
+    out[5] = t->ss;
+    return LINK_TIME_SET_LEN;
+}
+
+void link_get_time(const uint8_t *in, rtc_time_t *t) {
+    t->yy = in[0];
+    t->mo = in[1];
+    t->dd = in[2];
+    t->hh = in[3];
+    t->mi = in[4];
+    t->ss = in[5];
+}
+
 void link_parser_reset(link_parser_t *p) {
     p->step = S_SYNC0;
 }
