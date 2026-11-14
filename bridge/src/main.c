@@ -7,6 +7,7 @@
 #include "hardware/uart.h"
 #include "pico/stdlib.h"
 
+#include "datalog.h"
 #include "ff.h"
 
 #include "link.h"
@@ -39,6 +40,7 @@
 #define STATUS_MS 1000
 #define RETRY_MS 1000
 #define CLOCK_PRINT_S 10
+#define SD_PROBE_S 5
 #define MS1_TIMEOUT_US 400000
 #define MS2_TIMEOUT_US 100000
 #define MAX_ERRORS 10
@@ -66,6 +68,7 @@ static bool cmd_pending;
 static uint8_t page_buf[MS1_PAGE_LEN];
 static uint8_t page_cached = NO_PAGE;
 static uint8_t clk_state;
+static char sig[MS1_SIG_LEN + 1];
 static rtc_time_t clk;
 
 static uint32_t now_ms(void) {
@@ -183,6 +186,22 @@ static void send_time(void) {
     gb_send(LINK_T_TIME, pl, LINK_TIME_LEN);
 }
 
+static void send_log(void) {
+    link_log_t l;
+    uint8_t pl[LINK_LOG_LEN];
+    log_status(&l);
+    gb_send(LINK_T_LOG, pl, link_put_log(pl, &l));
+}
+
+static void do_log(uint8_t on) {
+    if (on) {
+        log_start(sig[0] ? sig : "unknown", clk_state == LINK_CLK_OK ? &clk : 0, now_ms());
+    } else {
+        log_stop();
+    }
+    send_log();
+}
+
 static void do_time(const uint8_t *in) {
     rtc_time_t t;
     uint8_t buf[1 + RTC_REGS];
@@ -292,6 +311,8 @@ static bool ms1_connect(void) {
         return false;
     }
     printf("signature: %.*s\n", MS1_SIG_LEN, buf);
+    memcpy(sig, buf, MS1_SIG_LEN);
+    sig[MS1_SIG_LEN] = 0;
     if (!ms1_cmd(c_page, sizeof c_page, buf, MS1_PAGE_LEN) || !ms1_parse_config(buf, MS1_PAGE_LEN, &ms1_cfg)) {
         return false;
     }
@@ -314,6 +335,7 @@ static bool ms2_connect(void) {
         return false;
     }
     printf("signature: %s\n", MS2_SIG);
+    snprintf(sig, sizeof sig, "%s", MS2_SIG);
     return true;
 }
 
@@ -448,6 +470,10 @@ static void handle_cmd(void) {
         do_ecu(cmd[0]);
         return;
     }
+    if (type == LINK_C_LOG && len == 1) {
+        do_log(cmd[0]);
+        return;
+    }
     if (type == LINK_C_TIME && len == LINK_TIME_SET_LEN) {
         do_time(cmd);
         return;
@@ -496,6 +522,8 @@ int main(void) {
     }
     ecu_open();
     uint8_t clock_s = 0;
+    uint8_t probe_s = 0;
+    log_probe();
 
     while (true) {
         uint32_t now = now_ms();
@@ -513,6 +541,7 @@ int main(void) {
             if (poll_rt(&rt)) {
                 errors = 0;
                 send_rt(&rt);
+                log_row(&rt, now);
                 if (now - last_print >= PRINT_MS) {
                     last_print = now;
                     print_rt(&rt);
@@ -529,8 +558,14 @@ int main(void) {
                 clock_s = 0;
                 print_clock();
             }
+            log_second(now);
+            if (!log_active() && ++probe_s >= SD_PROBE_S) {
+                probe_s = 0;
+                log_probe();
+            }
             send_status();
             send_time();
+            send_log();
         }
 
         if (cmd_pending) {
