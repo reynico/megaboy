@@ -10,7 +10,7 @@
 #include "tiles.h"
 #include "ui.h"
 
-enum { K_TEMP, K_X10, K_INT, K_ONOFF, K_RTC };
+enum { K_TEMP, K_X10, K_INT, K_ONOFF, K_ECU };
 
 typedef struct {
     const char *label;
@@ -29,7 +29,7 @@ static const item_t items[] = {
     {"AUTO LOG", &app.set.auto_log, 0, 1, 1, K_ONOFF},
     {"ALARM SND", &app.set.alarm_snd, 0, 1, 1, K_ONOFF},
     {"KEY SND", &app.set.key_snd, 0, 1, 1, K_ONOFF},
-    {"CLOCK", 0, 0, 0, 0, K_RTC},
+    {"ECU", &app.set.ecu, 0, 2, 1, K_ECU},
 };
 #define ITEM_COUNT (sizeof items / sizeof items[0])
 #define ITEM_Y0 2u
@@ -50,7 +50,7 @@ static void draw_value(uint8_t i) {
     char s[VAL_W];
     uint8_t live = editing && i == sel;
     uint8_t pal = live ? PAL_AMBER : PAL_TEXT;
-    int16_t v = it->val ? (live ? edit_val : *it->val) : 0;
+    int16_t v = live ? edit_val : *it->val;
     switch (it->kind) {
     case K_TEMP:
         fmt_int(s, VAL_W, v, 'C');
@@ -64,8 +64,8 @@ static void draw_value(uint8_t i) {
     case K_ONOFF:
         ui_text(VAL_X, item_y(i), v ? "    ON" : "   OFF", pal);
         return;
-    case K_RTC:
-        ui_text(VAL_X, item_y(i), "NO RTC", PAL_DIM);
+    case K_ECU:
+        ui_text(VAL_X, item_y(i), v == 1 ? "   MS1" : (v == 2 ? "   MS2" : "   ---"), pal);
         return;
     default:
         return;
@@ -92,9 +92,6 @@ void settings_clamp(void) {
     uint8_t i;
     for (i = 0; i < ITEM_COUNT; i++) {
         int16_t *v = items[i].val;
-        if (!v) {
-            continue;
-        }
         if (*v < items[i].min) {
             *v = items[i].min;
         }
@@ -110,7 +107,7 @@ void settings_enter(void) {
     ui_clear();
     hdr_draw("SETTINGS");
     for (i = 0; i < ITEM_COUNT; i++) {
-        ui_text(1, item_y(i), items[i].label, items[i].kind == K_RTC ? PAL_DIM : PAL_TEXT);
+        ui_text(1, item_y(i), items[i].label, PAL_TEXT);
         draw_value(i);
     }
     draw_footer();
@@ -160,7 +157,7 @@ void settings_input(uint8_t pressed) {
     } else if (pressed & J_DOWN) {
         sel = (uint8_t)((sel + 1u) % ITEM_COUNT);
         draw_cursor();
-    } else if ((pressed & J_A) && items[sel].kind != K_RTC) {
+    } else if (pressed & J_A) {
         editing = 1;
         edit_val = *items[sel].val;
         draw_value(sel);

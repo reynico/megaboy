@@ -60,6 +60,10 @@ static void on_status(void) {
     link_get_status(parser.buf, &st);
     app.ecu = st.ecu;
     app.ecu_state = st.state;
+    if (app.set.ecu && st.ecu != (uint8_t)app.set.ecu) {
+        uint8_t t = (uint8_t)app.set.ecu;
+        linkrx_send(LINK_C_ECU, &t, 1);
+    }
 }
 
 static void on_frame(void) {

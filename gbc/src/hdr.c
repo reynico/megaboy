@@ -2,6 +2,7 @@
 
 #include "app.h"
 #include "fmt.h"
+#include "link.h"
 #include "tiles.h"
 #include "ui.h"
 
@@ -16,6 +17,9 @@ void hdr_tick(void) {
     if (app.src == SRC_LOST) {
         ui_tile(10, 0, T_SPACE, PAL_TEXT);
         ui_text(11, 0, app.blink ? "  NO LINK" : "         ", PAL_RED);
+    } else if (app.src == SRC_LINK && app.ecu == LINK_ECU_NONE) {
+        ui_tile(10, 0, T_SPACE, PAL_TEXT);
+        ui_text(11, 0, app.blink ? "  SET ECU" : "         ", PAL_RED);
     } else if (app_ecu_missing()) {
         ui_tile(10, 0, T_SPACE, PAL_TEXT);
         ui_text(11, 0, app.blink ? "   NO ECU" : "         ", PAL_RED);
