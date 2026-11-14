@@ -88,7 +88,18 @@ static void test_noise_and_errors(void) {
     CHECK(feed_all(&p, buf, 2u * fl) == 2);
 }
 
+static void test_log_roundtrip(void) {
+    link_log_t a = {LINK_LOG_REC, 1234, 3599, 0x01234567u, 20};
+    link_log_t b;
+    uint8_t pl[LINK_LOG_LEN];
+    CHECK(link_put_log(pl, &a) == LINK_LOG_LEN);
+    link_get_log(pl, &b);
+    CHECK(b.state == a.state && b.num == a.num && b.secs == a.secs && b.bytes == a.bytes && b.hz == a.hz);
+    CHECK(pl[5] == 0x67 && pl[8] == 0x01);
+}
+
 int main(void) {
+    test_log_roundtrip();
     test_rt_roundtrip();
     test_status();
     test_noise_and_errors();

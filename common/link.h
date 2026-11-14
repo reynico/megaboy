@@ -14,12 +14,14 @@
 #define LINK_T_TABLE 0x03u
 #define LINK_T_ACK 0x04u
 #define LINK_T_TIME 0x05u
+#define LINK_T_LOG 0x06u
 
 #define LINK_C_READ 0x10u
 #define LINK_C_WRITE 0x11u
 #define LINK_C_BURN 0x12u
 #define LINK_C_ECU 0x13u
 #define LINK_C_TIME 0x14u
+#define LINK_C_LOG 0x15u
 
 #define LINK_TABLE_CHUNK 28u
 #define LINK_ACK_LEN 5u
@@ -28,6 +30,7 @@
 #define LINK_STATUS_LEN 2u
 #define LINK_TIME_LEN 7u
 #define LINK_TIME_SET_LEN 6u
+#define LINK_LOG_LEN 10u
 
 #define LINK_ECU_NONE 0u
 #define LINK_ECU_MS1 1u
@@ -39,6 +42,12 @@
 #define LINK_CLK_NONE 0u
 #define LINK_CLK_UNSET 1u
 #define LINK_CLK_OK 2u
+
+#define LINK_LOG_IDLE 0u
+#define LINK_LOG_REC 1u
+#define LINK_LOG_NOCARD 2u
+#define LINK_LOG_FULL 3u
+#define LINK_LOG_ERR 4u
 
 typedef struct {
     uint16_t rpm;
@@ -60,6 +69,14 @@ typedef struct {
 } link_status_t;
 
 typedef struct {
+    uint8_t state;
+    uint16_t num;
+    uint16_t secs;
+    uint32_t bytes;
+    uint8_t hz;
+} link_log_t;
+
+typedef struct {
     uint8_t step;
     uint8_t type;
     uint8_t len;
@@ -75,6 +92,8 @@ uint8_t link_put_status(uint8_t *out, const link_status_t *st);
 void link_get_status(const uint8_t *in, link_status_t *st);
 uint8_t link_put_time(uint8_t *out, const rtc_time_t *t);
 void link_get_time(const uint8_t *in, rtc_time_t *t);
+uint8_t link_put_log(uint8_t *out, const link_log_t *l);
+void link_get_log(const uint8_t *in, link_log_t *l);
 
 void link_parser_reset(link_parser_t *p);
 uint8_t link_feed(link_parser_t *p, uint8_t b);

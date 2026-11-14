@@ -87,6 +87,24 @@ void link_get_time(const uint8_t *in, rtc_time_t *t) {
     t->ss = in[5];
 }
 
+uint8_t link_put_log(uint8_t *out, const link_log_t *l) {
+    out[0] = l->state;
+    put16(out + 1, l->num);
+    put16(out + 3, l->secs);
+    put16(out + 5, (uint16_t)l->bytes);
+    put16(out + 7, (uint16_t)(l->bytes >> 16));
+    out[9] = l->hz;
+    return LINK_LOG_LEN;
+}
+
+void link_get_log(const uint8_t *in, link_log_t *l) {
+    l->state = in[0];
+    l->num = get16(in + 1);
+    l->secs = get16(in + 3);
+    l->bytes = (uint32_t)get16(in + 5) | (uint32_t)get16(in + 7) << 16;
+    l->hz = in[9];
+}
+
 void link_parser_reset(link_parser_t *p) {
     p->step = S_SYNC0;
 }
