@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include "rt.h"
+#include "rtc.h"
 
 typedef struct {
     int16_t clt_warn_c;
@@ -31,6 +32,8 @@ typedef struct {
     uint8_t ecu;
     uint8_t ecu_state;
     uint8_t rt_new;
+    uint8_t clk_state;
+    rtc_time_t clk;
 } app_t;
 
 #define LOG_BYTES_PER_S 3200u

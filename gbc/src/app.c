@@ -85,6 +85,7 @@ void app_init(void) {
     app.ecu = 0;
     app.ecu_state = 0;
     app.rt_new = 0;
+    app.clk_state = 0;
 }
 
 uint8_t app_ecu_missing(void) {

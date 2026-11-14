@@ -66,11 +66,18 @@ static void on_status(void) {
     }
 }
 
+static void on_time(void) {
+    app.clk_state = parser.buf[0];
+    link_get_time(parser.buf + 1, &app.clk);
+}
+
 static void on_frame(void) {
     if (parser.type == LINK_T_RT && parser.len == LINK_RT_LEN) {
         on_rt();
     } else if (parser.type == LINK_T_STATUS && parser.len == LINK_STATUS_LEN) {
         on_status();
+    } else if (parser.type == LINK_T_TIME && parser.len == LINK_TIME_LEN) {
+        on_time();
     } else if (parser.type == LINK_T_TABLE) {
         td_on_table(parser.buf, parser.len);
     } else if (parser.type == LINK_T_ACK && parser.len == LINK_ACK_LEN) {
