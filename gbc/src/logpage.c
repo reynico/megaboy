@@ -54,11 +54,10 @@ static void draw_card(void) {
     ui_text(8, 11, t, pal);
 }
 
-void logpage_tick(void) {
-    char s[11];
-    uint32_t kb = app.log_bytes / 1024u;
+enum { L_FILE, L_TIME, L_RATE, L_SIZE, L_CARD, L_KEYS };
 
-    hdr_tick();
+static void draw_file(void) {
+    char s[11];
     if (app.src != SRC_SIM && app.log_dated) {
         two(s, app.log_start.mo);
         s[2] = '-';
@@ -81,35 +80,65 @@ void logpage_tick(void) {
         s[10] = 'L';
     }
     ui_textn(8, 3, s, 11, app.logging ? PAL_TEXT : PAL_DIM);
+}
 
-    fmt_time(s, app.log_s);
-    ui_textn(8, 5, s, 5, PAL_TEXT);
-
+static void draw_size(uint32_t kb) {
+    char s[7];
+    uint16_t mb;
     if (kb < 1024u) {
         fmt_int(s, 4, (int16_t)kb, 0);
-        s[4] = ' ';
         s[5] = 'K';
-        s[6] = 'B';
     } else {
-        fmt_x10(s, 4, (int16_t)(kb * 10u / 1024u), 0);
-        s[4] = ' ';
+        mb = kb >> 10 > 3000u ? 3000u : (uint16_t)(kb >> 10);
+        fmt_x10(s, 4, (int16_t)(mb * 10u + (((uint16_t)kb & 1023u) * 10u >> 10)), 0);
         s[5] = 'M';
-        s[6] = 'B';
     }
+    s[4] = ' ';
+    s[6] = 'B';
     ui_textn(8, 9, s, 7, PAL_TEXT);
+}
 
+static void draw_rate(void) {
+    char s[6];
     if (app.src == SRC_SIM) {
         ui_text(8, 7, "20 HZ", PAL_TEXT);
-    } else {
-        fmt_int(s, 3, app.log_hz, 0);
-        s[3] = ' ';
-        s[4] = 'H';
-        s[5] = 'Z';
-        ui_textn(8, 7, s, 6, app.logging ? PAL_TEXT : PAL_DIM);
+        return;
     }
-    draw_card();
+    fmt_int(s, 3, app.log_hz, 0);
+    s[3] = ' ';
+    s[4] = 'H';
+    s[5] = 'Z';
+    ui_textn(8, 7, s, 6, app.logging ? PAL_TEXT : PAL_DIM);
+}
 
-    ui_text(1, 16, app.logging ? "A:STOP " : "A:START", PAL_DIM);
+void logpage_tick(void) {
+    char s[5];
+    uint32_t kb = app.log_bytes >> 10;
+    uint8_t sim = app.src == SRC_SIM;
+    int16_t file = (!sim && app.log_dated) ? (int16_t)(0x4000u | (uint16_t)app.log_start.dd << 11 |
+                                                      (uint16_t)app.log_start.hh << 6 | app.log_start.mi)
+                                           : (int16_t)app.log_num;
+
+    hdr_tick();
+    if (ui_changed(L_FILE, file, (uint8_t)(app.logging | app.log_start.mo << 1))) {
+        draw_file();
+    }
+    if (ui_changed(L_TIME, (int16_t)app.log_s, 0)) {
+        fmt_time(s, app.log_s);
+        ui_textn(8, 5, s, 5, PAL_TEXT);
+    }
+    if (ui_changed(L_RATE, app.log_hz, (uint8_t)(app.logging | sim << 1))) {
+        draw_rate();
+    }
+    if (ui_changed(L_SIZE, (int16_t)(uint16_t)kb, 0)) {
+        draw_size(kb);
+    }
+    if (ui_changed(L_CARD, app.log_state, sim)) {
+        draw_card();
+    }
+    if (ui_changed(L_KEYS, 0, app.logging)) {
+        ui_text(1, 16, app.logging ? "A:STOP " : "A:START", PAL_DIM);
+    }
 }
 
 void logpage_input(uint8_t pressed) {
