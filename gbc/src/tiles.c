@@ -15,14 +15,17 @@ uint8_t tile_small(char c) {
     return (uint8_t)(u - FONT_FIRST);
 }
 
-uint8_t tile_big(char c, uint8_t quad) {
+uint8_t tile_big_base(char c) {
     uint8_t i;
-    for (i = 0; i < BIG_COUNT; i++) {
+    if (c >= '0' && c <= '9') {
+        return (uint8_t)(T_BIG + (uint8_t)(c - '0') * 4u);
+    }
+    for (i = 10u; i < BIG_COUNT; i++) {
         if (big_chars[i] == c) {
-            return (uint8_t)(T_BIG + i * 4u + quad);
+            return (uint8_t)(T_BIG + i * 4u);
         }
     }
-    return (uint8_t)(T_BIG + (BIG_COUNT - 1u) * 4u + quad);
+    return (uint8_t)(T_BIG + (BIG_COUNT - 1u) * 4u);
 }
 
 static uint8_t dbl(uint8_t nib) {

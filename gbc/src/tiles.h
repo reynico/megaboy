@@ -24,5 +24,5 @@
 #define CH_DOWN '_'
 
 uint8_t tile_small(char c);
-uint8_t tile_big(char c, uint8_t quad);
+uint8_t tile_big_base(char c);
 void tiles_load(void);
