@@ -34,6 +34,8 @@
 
 #define GB_HALF_US 15
 #define GB_GAP_US 150
+#define GBQ_SIZE 512u
+#define GBQ_MASK (GBQ_SIZE - 1u)
 #define MS1_POLL_MS 40
 #define MS2_POLL_MS 50
 #define PRINT_MS 500
@@ -109,6 +111,11 @@ static void ecu_open(void) {
     printf("ecu: %s\n", ecu_type == LINK_ECU_MS1 ? "ms1/extra" : "ms2/extra");
 }
 
+static uint8_t gbq[GBQ_SIZE];
+static uint16_t gbq_head;
+static uint16_t gbq_tail;
+static uint64_t gb_last_us;
+
 static uint8_t gb_xfer(uint8_t out) {
     uint8_t in = 0;
     for (int i = 0; i < 8; i++) {
@@ -120,21 +127,34 @@ static uint8_t gb_xfer(uint8_t out) {
         in = (uint8_t)(in << 1) | (gpio_get(GB_IN) ? 1 : 0);
         busy_wait_us_32(GB_HALF_US);
     }
-    busy_wait_us_32(GB_GAP_US);
     return in;
+}
+
+static void gb_pump(void) {
+    uint8_t b;
+    if (gbq_head == gbq_tail || time_us_64() - gb_last_us < GB_GAP_US) {
+        return;
+    }
+    b = gb_xfer(gbq[gbq_tail]);
+    gbq_tail = (uint16_t)((gbq_tail + 1u) & GBQ_MASK);
+    gb_last_us = time_us_64();
+    if (link_feed(&up, b) && !cmd_pending && up.len <= sizeof cmd) {
+        cmd_type = up.type;
+        cmd_len = up.len;
+        memcpy(cmd, up.buf, up.len);
+        cmd_pending = true;
+    }
 }
 
 static void gb_send(uint8_t type, const uint8_t *payload, uint8_t len) {
     uint8_t fr[LINK_FRAME_MAX];
     uint8_t n = link_encode(fr, type, payload, len);
+    while (((gbq_tail - gbq_head - 1u) & GBQ_MASK) < n) {
+        gb_pump();
+    }
     for (uint8_t i = 0; i < n; i++) {
-        uint8_t b = gb_xfer(fr[i]);
-        if (link_feed(&up, b) && !cmd_pending && up.len <= sizeof cmd) {
-            cmd_type = up.type;
-            cmd_len = up.len;
-            memcpy(cmd, up.buf, up.len);
-            cmd_pending = true;
-        }
+        gbq[gbq_head] = fr[i];
+        gbq_head = (uint16_t)((gbq_head + 1u) & GBQ_MASK);
     }
 }
 
@@ -255,6 +275,8 @@ static bool ms1_cmd(const uint8_t *c, size_t clen, uint8_t *out, size_t n) {
     while (got < n && !time_reached(deadline)) {
         if (uart_is_readable(ECU_UART)) {
             out[got++] = (uint8_t)uart_getc(ECU_UART);
+        } else {
+            gb_pump();
         }
     }
     if (got != n) {
@@ -271,6 +293,7 @@ static bool ms2_transact(const uint8_t *req, size_t n, const uint8_t **data, siz
     absolute_time_t deadline = make_timeout_time_us(MS2_TIMEOUT_US);
     while (!time_reached(deadline)) {
         if (!uart_is_readable(ECU_UART)) {
+            gb_pump();
             continue;
         }
         const uint8_t *pl;
@@ -450,7 +473,10 @@ static void do_burn(uint8_t id) {
     }
     const uint8_t b[] = {MS1_CMD_PAGE, t->page_cmd, 'B'};
     uart_write_blocking(ECU_UART, b, sizeof b);
-    sleep_ms(BURN_WAIT_MS);
+    absolute_time_t end = make_timeout_time_ms(BURN_WAIT_MS);
+    while (!time_reached(end)) {
+        gb_pump();
+    }
     page_cached = NO_PAGE;
     printf("burn: table %u\n", id);
     send_ack(LINK_C_BURN, id, 0, TUNE_OK, 0);
@@ -576,5 +602,6 @@ int main(void) {
         if (cmd_pending) {
             handle_cmd();
         }
+        gb_pump();
     }
 }
