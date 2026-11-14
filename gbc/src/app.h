@@ -29,6 +29,8 @@ typedef struct {
     uint8_t log_state;
     uint8_t log_hz;
     uint8_t log_req;
+    uint8_t log_dated;
+    rtc_time_t log_start;
     uint8_t src;
     uint8_t link_age;
     uint8_t rt_age;

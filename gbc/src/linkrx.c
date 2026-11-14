@@ -80,6 +80,8 @@ static void on_log(void) {
     app.log_s = l.secs;
     app.log_bytes = l.bytes;
     app.log_hz = l.hz;
+    app.log_dated = l.dated;
+    app.log_start = l.start;
 }
 
 static void on_frame(void) {

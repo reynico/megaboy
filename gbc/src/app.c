@@ -86,6 +86,7 @@ void app_init(void) {
     app.log_state = LINK_LOG_IDLE;
     app.log_hz = 0;
     app.log_req = 0;
+    app.log_dated = 0;
     app.src = SRC_SIM;
     app.link_age = 0;
     app.rt_age = 0;

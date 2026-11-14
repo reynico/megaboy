@@ -20,6 +20,11 @@ void logpage_enter(void) {
     ui_divider(15);
 }
 
+static void two(char *s, uint8_t v) {
+    s[0] = (char)('0' + v / 10u);
+    s[1] = (char)('0' + v % 10u);
+}
+
 static void draw_card(void) {
     const char *t = "SIM      ";
     uint8_t pal = PAL_AMBER;
@@ -54,17 +59,27 @@ void logpage_tick(void) {
     uint32_t kb = app.log_bytes / 1024u;
 
     hdr_tick();
-    s[0] = 'L';
-    s[1] = 'O';
-    s[2] = 'G';
-    s[3] = (char)('0' + (app.log_num / 1000u) % 10u);
-    s[4] = (char)('0' + (app.log_num / 100u) % 10u);
-    s[5] = (char)('0' + (app.log_num / 10u) % 10u);
-    s[6] = (char)('0' + app.log_num % 10u);
-    s[7] = '.';
-    s[8] = 'M';
-    s[9] = 'S';
-    s[10] = 'L';
+    if (app.src != SRC_SIM && app.log_dated) {
+        two(s, app.log_start.mo);
+        s[2] = '-';
+        two(s + 3, app.log_start.dd);
+        s[5] = ' ';
+        two(s + 6, app.log_start.hh);
+        s[8] = ':';
+        two(s + 9, app.log_start.mi);
+    } else {
+        s[0] = 'L';
+        s[1] = 'O';
+        s[2] = 'G';
+        s[3] = (char)('0' + (app.log_num / 1000u) % 10u);
+        s[4] = (char)('0' + (app.log_num / 100u) % 10u);
+        s[5] = (char)('0' + (app.log_num / 10u) % 10u);
+        s[6] = (char)('0' + app.log_num % 10u);
+        s[7] = '.';
+        s[8] = 'M';
+        s[9] = 'S';
+        s[10] = 'L';
+    }
     ui_textn(8, 3, s, 11, app.logging ? PAL_TEXT : PAL_DIM);
 
     fmt_time(s, app.log_s);
