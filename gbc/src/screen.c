@@ -5,6 +5,7 @@
 #include "about.h"
 #include "app.h"
 #include "boost.h"
+#include "clockset.h"
 #include "dash.h"
 #include "logpage.h"
 #include "menu.h"
@@ -23,6 +24,7 @@ static const screen_t screens[SCR_COUNT] = {
     {tunemenu_enter, tunemenu_tick, tunemenu_input},
     {about_enter, about_tick, about_input},
     {tedit_enter, tedit_tick, tedit_input},
+    {clockset_enter, clockset_tick, clockset_input},
 };
 
 static const uint8_t pages[] = {SCR_DASH, SCR_BOOST, SCR_LOG};
