@@ -16,27 +16,58 @@ static void emit(char *out, uint8_t w, const char *s, uint8_t n) {
     }
 }
 
-static uint8_t digits(char *buf, uint16_t v) {
-    char tmp[5];
-    uint8_t n = 0;
-    uint8_t i;
-    do {
-        tmp[n++] = (char)('0' + v % 10u);
-        v /= 10u;
-    } while (v != 0u);
-    for (i = 0; i < n; i++) {
-        buf[i] = tmp[n - 1u - i];
+static const uint16_t pow10[4] = {10000u, 1000u, 100u, 10u};
+
+#define DIGIT(p)                       \
+    d = 0;                             \
+    while (v >= (p)) {                 \
+        v -= (p);                      \
+        d++;                           \
+    }                                  \
+    if (d || n) {                      \
+        buf[n++] = (char)('0' + d);    \
     }
+
+static uint8_t digits(char *buf, uint16_t v) {
+    uint8_t n = 0;
+    uint8_t d = 0;
+    while (v >= 10000u) {
+        v -= 10000u;
+        d++;
+    }
+    if (d) {
+        buf[n++] = (char)('0' + d);
+    }
+    DIGIT(1000u)
+    DIGIT(100u)
+    DIGIT(10u)
+    buf[n++] = (char)('0' + (uint8_t)v);
     return n;
 }
 
+static const uint16_t pow10_q[4] = {1000u, 100u, 10u, 1u};
+
+static uint16_t div10(uint16_t v, uint8_t *rem) {
+    uint16_t q = 0;
+    uint8_t i;
+    for (i = 0; i < 4u; i++) {
+        while (v >= pow10[i]) {
+            v -= pow10[i];
+            q += pow10_q[i];
+        }
+    }
+    *rem = (uint8_t)v;
+    return q;
+}
+
 static uint16_t mag(int16_t v) {
-    return v < 0 ? (uint16_t)(-(int32_t)v) : (uint16_t)v;
+    return v < 0 ? (uint16_t)(0u - (uint16_t)v) : (uint16_t)v;
 }
 
 int16_t fmt_round_x10(int16_t v) {
-    int32_t x = v;
-    return (int16_t)(x >= 0 ? (x + 5) / 10 : (x - 5) / 10);
+    uint8_t r;
+    uint16_t q = div10((uint16_t)(mag(v) + 5u), &r);
+    return v < 0 ? (int16_t)(0u - q) : (int16_t)q;
 }
 
 void fmt_int(char *out, uint8_t w, int16_t v, char suffix) {
@@ -55,15 +86,16 @@ void fmt_int(char *out, uint8_t w, int16_t v, char suffix) {
 void fmt_x10(char *out, uint8_t w, int16_t v, uint8_t plus) {
     char s[9];
     uint8_t n = 0;
+    uint8_t r;
     uint16_t a = mag(v);
     if (v < 0) {
         s[n++] = '-';
     } else if (plus) {
         s[n++] = '+';
     }
-    n += digits(s + n, a / 10u);
+    n += digits(s + n, div10(a, &r));
     s[n++] = '.';
-    s[n++] = (char)('0' + a % 10u);
+    s[n++] = (char)('0' + r);
     emit(out, w, s, n);
 }
 
@@ -79,4 +111,17 @@ void fmt_time(char *out, uint16_t sec) {
     out[2] = ':';
     out[3] = (char)('0' + ss / 10u);
     out[4] = (char)('0' + ss % 10u);
+}
+
+uint8_t fmt_bar_px(int16_t value, uint16_t max, uint8_t w) {
+    uint16_t v;
+    if (value <= 0 || max == 0u) {
+        return 0;
+    }
+    v = (uint16_t)value > max ? max : (uint16_t)value;
+    while (max > 65535u / 140u) {
+        max >>= 1;
+        v >>= 1;
+    }
+    return (uint8_t)((uint16_t)(v * (uint16_t)(w * 7u)) / max);
 }

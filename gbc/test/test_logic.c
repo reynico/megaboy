@@ -119,7 +119,31 @@ static void test_fmt_all(void) {
     CHECK(bad_round == 0);
 }
 
+static void test_bar_px(void) {
+    int worst = 0;
+    for (long v = -100; v <= 9000; v++) {
+        for (int k = 0; k < 2; k++) {
+            long max = k ? 8000 : 250;
+            long c = v < 0 ? 0 : (v > max ? max : v);
+            int want = (int)(c * 126 / max);
+            int got = fmt_bar_px((int16_t)v, (uint16_t)max, 18);
+            int d = got > want ? got - want : want - got;
+            if (d > worst) {
+                worst = d;
+            }
+            if (c == max) {
+                CHECK(got == 126);
+            }
+            if (c == 0) {
+                CHECK(got == 0);
+            }
+        }
+    }
+    CHECK(worst <= 1);
+}
+
 int main(void) {
+    test_bar_px();
     test_fmt();
     test_fmt_all();
     test_sim();
