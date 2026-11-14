@@ -25,6 +25,8 @@
 
 #define LINK_TABLE_CHUNK 28u
 #define LINK_ACK_LEN 5u
+#define LINK_WRITE_LEN 4u
+#define LINK_WF_VERIFY 0x01u
 
 #define LINK_RT_LEN 20u
 #define LINK_STATUS_LEN 2u
