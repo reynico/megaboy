@@ -15,6 +15,7 @@
 #define LINK_C_READ 0x10u
 #define LINK_C_WRITE 0x11u
 #define LINK_C_BURN 0x12u
+#define LINK_C_ECU 0x13u
 
 #define LINK_TABLE_CHUNK 28u
 #define LINK_ACK_LEN 5u
