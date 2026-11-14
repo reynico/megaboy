@@ -17,6 +17,8 @@ static uint32_t start_ms;
 static uint32_t last_ms;
 static uint16_t rows;
 static uint8_t hz;
+static uint8_t dated;
+static rtc_time_t start;
 
 static uint8_t mount(void) {
     mounted = f_mount(&fs, "", 1) == FR_OK;
@@ -81,8 +83,24 @@ static uint8_t put(const char *s, UINT n) {
     return 0;
 }
 
+static FRESULT open_log(const rtc_time_t *t, char *name, size_t n) {
+    FRESULT r;
+    if (t) {
+        snprintf(name, n, "20%02u-%02u-%02u_%02u.%02u.%02u.msl", t->yy, t->mo, t->dd, t->hh, t->mi, t->ss);
+        r = f_open(&fil, name, FA_WRITE | FA_CREATE_NEW);
+        if (r != FR_EXIST) {
+            dated = 1;
+            start = *t;
+            return r;
+        }
+    }
+    dated = 0;
+    snprintf(name, n, "LOG%04u.MSL", num);
+    return f_open(&fil, name, FA_WRITE | FA_CREATE_NEW);
+}
+
 void log_start(const char *sig, const rtc_time_t *t, uint32_t now_ms) {
-    char name[13];
+    char name[32];
     char line[ROW_MAX];
     int n;
     if (state == LINK_LOG_REC) {
@@ -97,8 +115,7 @@ void log_start(const char *sig, const rtc_time_t *t, uint32_t now_ms) {
         fail(num ? LINK_LOG_FULL : LINK_LOG_ERR, "no file number");
         return;
     }
-    snprintf(name, sizeof name, "LOG%04u.MSL", num);
-    if (f_open(&fil, name, FA_WRITE | FA_CREATE_NEW) != FR_OK) {
+    if (open_log(t, name, sizeof name) != FR_OK) {
         fail(LINK_LOG_ERR, "open failed");
         return;
     }
@@ -130,7 +147,7 @@ void log_stop(void) {
         return;
     }
     state = f_close(&fil) == FR_OK ? LINK_LOG_IDLE : LINK_LOG_ERR;
-    printf("sd: stopped LOG%04u.MSL\n", num);
+    printf("sd: stopped\n");
 }
 
 static char *x10(char *o, int16_t v) {
@@ -189,6 +206,8 @@ void log_status(link_log_t *out) {
     out->secs = 0;
     out->bytes = 0;
     out->hz = 0;
+    out->dated = dated;
+    out->start = start;
     if (state == LINK_LOG_REC) {
         uint32_t s = (last_ms - start_ms) / 1000u;
         out->secs = s > 0xffffu ? 0xffffu : (uint16_t)s;

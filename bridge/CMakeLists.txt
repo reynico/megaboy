@@ -27,10 +27,10 @@ FetchContent_Declare(fatfs
     SOURCE_SUBDIR none)
 FetchContent_MakeAvailable(fatfs)
 set(FATFS ${fatfs_SOURCE_DIR}/source)
-set_source_files_properties(${FATFS}/ff.c PROPERTIES COMPILE_OPTIONS "-w")
+set_source_files_properties(${FATFS}/ff.c ${FATFS}/ffunicode.c PROPERTIES COMPILE_OPTIONS "-w")
 
 set(COMMON ${CMAKE_CURRENT_LIST_DIR}/../common)
-add_executable(bridge src/main.c src/datalog.c src/sdspi.c ${FATFS}/ff.c ${COMMON}/ecu.c ${COMMON}/link.c ${COMMON}/ms1.c ${COMMON}/ms1_tables.c
+add_executable(bridge src/main.c src/datalog.c src/sdspi.c ${FATFS}/ff.c ${FATFS}/ffunicode.c ${COMMON}/ecu.c ${COMMON}/link.c ${COMMON}/ms1.c ${COMMON}/ms1_tables.c
     ${COMMON}/ms2.c ${COMMON}/rtc.c ${COMMON}/tune.c)
 target_include_directories(bridge PRIVATE ${COMMON} ${FATFS})
 target_compile_options(bridge PRIVATE -include ${CMAKE_CURRENT_LIST_DIR}/src/fatfs/ffconf.h)
