@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "hardware/flash.h"
+#include "hardware/i2c.h"
 #include "hardware/sync.h"
 #include "hardware/uart.h"
 #include "pico/stdlib.h"
@@ -9,6 +10,7 @@
 #include "link.h"
 #include "ms1.h"
 #include "ms2.h"
+#include "rtc.h"
 #include "tune.h"
 
 #define ECU_UART uart0
@@ -18,6 +20,14 @@
 #define GB_SCK 26
 #define GB_OUT 27
 #define GB_IN 28
+#define RTC_I2C i2c1
+#define RTC_SDA 6
+#define RTC_SCL 7
+#define RTC_ADDR 0x68
+#define RTC_HZ 100000
+#define RTC_TIMEOUT_US 5000
+#define RTC_REG_STATUS 0x0f
+#define RTC_OSF 0x80
 
 #define GB_HALF_US 15
 #define GB_GAP_US 150
@@ -26,6 +36,7 @@
 #define PRINT_MS 500
 #define STATUS_MS 1000
 #define RETRY_MS 1000
+#define CLOCK_PRINT_S 10
 #define MS1_TIMEOUT_US 400000
 #define MS2_TIMEOUT_US 100000
 #define MAX_ERRORS 10
@@ -48,10 +59,12 @@ static ms2_parser_t ms2p;
 static link_parser_t up;
 static uint8_t cmd_type;
 static uint8_t cmd_len;
-static uint8_t cmd[LINK_ACK_LEN];
+static uint8_t cmd[LINK_TIME_SET_LEN];
 static bool cmd_pending;
 static uint8_t page_buf[MS1_PAGE_LEN];
 static uint8_t page_cached = NO_PAGE;
+static uint8_t clk_state;
+static rtc_time_t clk;
 
 static uint32_t now_ms(void) {
     return to_ms_since_boot(get_absolute_time());
@@ -124,6 +137,61 @@ static void send_status(void) {
     link_status_t st = {ecu_ok ? LINK_ST_OK : LINK_ST_WAIT, ecu_type};
     uint8_t pl[LINK_STATUS_LEN];
     gb_send(LINK_T_STATUS, pl, link_put_status(pl, &st));
+}
+
+static bool rtc_read(uint8_t reg, uint8_t *out, size_t n) {
+    return i2c_write_timeout_us(RTC_I2C, RTC_ADDR, &reg, 1, true, RTC_TIMEOUT_US) == 1 &&
+           i2c_read_timeout_us(RTC_I2C, RTC_ADDR, out, n, false, RTC_TIMEOUT_US) == (int)n;
+}
+
+static bool rtc_write(const uint8_t *buf, size_t n) {
+    return i2c_write_timeout_us(RTC_I2C, RTC_ADDR, buf, n, false, RTC_TIMEOUT_US) == (int)n;
+}
+
+static void rtc_poll(void) {
+    uint8_t regs[RTC_REGS];
+    uint8_t st;
+    if (!rtc_read(0, regs, sizeof regs) || !rtc_read(RTC_REG_STATUS, &st, 1)) {
+        clk_state = LINK_CLK_NONE;
+        return;
+    }
+    clk_state = (st & RTC_OSF) || !rtc_decode(regs, &clk) ? LINK_CLK_UNSET : LINK_CLK_OK;
+}
+
+static void print_clock(void) {
+    if (clk_state == LINK_CLK_OK) {
+        printf("rtc: 20%02u-%02u-%02u %02u:%02u:%02u\n", clk.yy, clk.mo, clk.dd, clk.hh, clk.mi, clk.ss);
+    } else {
+        printf("rtc: %s\n", clk_state == LINK_CLK_NONE ? "not found" : "not set");
+    }
+}
+
+static void send_time(void) {
+    uint8_t pl[LINK_TIME_LEN];
+    pl[0] = clk_state;
+    link_put_time(pl + 1, &clk);
+    gb_send(LINK_T_TIME, pl, LINK_TIME_LEN);
+}
+
+static void do_time(const uint8_t *in) {
+    rtc_time_t t;
+    uint8_t buf[1 + RTC_REGS];
+    uint8_t st[2] = {RTC_REG_STATUS, 0};
+    link_get_time(in, &t);
+    if (!rtc_valid(&t)) {
+        printf("rtc: bad time\n");
+        return;
+    }
+    buf[0] = 0;
+    rtc_encode(&t, buf + 1);
+    if (!rtc_write(buf, sizeof buf) || !rtc_read(RTC_REG_STATUS, &st[1], 1)) {
+        printf("rtc: write failed\n");
+        return;
+    }
+    st[1] &= (uint8_t)~RTC_OSF;
+    rtc_write(st, sizeof st);
+    rtc_poll();
+    print_clock();
 }
 
 static void send_rt(const ecu_rt_t *r) {
@@ -370,6 +438,10 @@ static void handle_cmd(void) {
         do_ecu(cmd[0]);
         return;
     }
+    if (type == LINK_C_TIME && len == LINK_TIME_SET_LEN) {
+        do_time(cmd);
+        return;
+    }
     if (!ecu_ok || ecu_type != LINK_ECU_MS1) {
         send_ack(type, len ? cmd[0] : 0, len > 1 ? cmd[1] : 0, TUNE_E_ECU, 0);
         return;
@@ -396,14 +468,24 @@ static void gb_init(void) {
     link_parser_reset(&up);
 }
 
+static void rtc_init(void) {
+    i2c_init(RTC_I2C, RTC_HZ);
+    gpio_set_function(RTC_SDA, GPIO_FUNC_I2C);
+    gpio_set_function(RTC_SCL, GPIO_FUNC_I2C);
+    gpio_pull_up(RTC_SDA);
+    gpio_pull_up(RTC_SCL);
+}
+
 int main(void) {
     stdio_init_all();
     gb_init();
+    rtc_init();
     ecu_type = cfg_load();
     if (ecu_type == LINK_ECU_NONE) {
         printf("ecu: not set, set it on the gbc\n");
     }
     ecu_open();
+    uint8_t clock_s = 0;
 
     while (true) {
         uint32_t now = now_ms();
@@ -432,7 +514,13 @@ int main(void) {
 
         if (now - last_status >= STATUS_MS) {
             last_status = now;
+            rtc_poll();
+            if (++clock_s >= CLOCK_PRINT_S) {
+                clock_s = 0;
+                print_clock();
+            }
             send_status();
+            send_time();
         }
 
         if (cmd_pending) {

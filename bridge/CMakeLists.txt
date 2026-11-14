@@ -23,10 +23,10 @@ pico_sdk_init()
 
 set(COMMON ${CMAKE_CURRENT_LIST_DIR}/../common)
 add_executable(bridge src/main.c ${COMMON}/ecu.c ${COMMON}/link.c ${COMMON}/ms1.c ${COMMON}/ms1_tables.c
-    ${COMMON}/ms2.c ${COMMON}/tune.c)
+    ${COMMON}/ms2.c ${COMMON}/rtc.c ${COMMON}/tune.c)
 target_include_directories(bridge PRIVATE ${COMMON})
 target_compile_options(bridge PRIVATE -Wall -Wextra -Werror)
-target_link_libraries(bridge pico_stdlib hardware_uart hardware_flash hardware_sync)
+target_link_libraries(bridge pico_stdlib hardware_uart hardware_flash hardware_sync hardware_i2c)
 pico_enable_stdio_usb(bridge 1)
 pico_enable_stdio_uart(bridge 0)
 pico_add_extra_outputs(bridge)
