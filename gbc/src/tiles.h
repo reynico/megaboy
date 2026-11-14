@@ -20,6 +20,9 @@
 #define PAL_WARN_DIM 7u
 #define PAL_COUNT 8u
 
+#define CH_UP '^'
+#define CH_DOWN '_'
+
 uint8_t tile_small(char c);
 uint8_t tile_big(char c, uint8_t quad);
 void tiles_load(void);
