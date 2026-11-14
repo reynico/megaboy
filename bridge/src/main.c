@@ -44,6 +44,7 @@
 #define CLOCK_PRINT_S 10
 #define SD_PROBE_S 5
 #define MS1_TIMEOUT_US 400000
+#define MS1_GAP_US 5000
 #define MS2_TIMEOUT_US 100000
 #define MAX_ERRORS 10
 #define BURN_WAIT_MS 200
@@ -267,7 +268,12 @@ static void flush_rx(void) {
     }
 }
 
+static uint64_t ms1_done_us;
+
 static bool ms1_cmd(const uint8_t *c, size_t clen, uint8_t *out, size_t n) {
+    while (time_us_64() - ms1_done_us < MS1_GAP_US) {
+        gb_pump();
+    }
     flush_rx();
     uart_write_blocking(ECU_UART, c, clen);
     absolute_time_t deadline = make_timeout_time_us(MS1_TIMEOUT_US);
@@ -279,6 +285,7 @@ static bool ms1_cmd(const uint8_t *c, size_t clen, uint8_t *out, size_t n) {
             gb_pump();
         }
     }
+    ms1_done_us = time_us_64();
     if (got != n) {
         printf("error: timeout, got %u of %u\n", (unsigned)got, (unsigned)n);
         return false;
