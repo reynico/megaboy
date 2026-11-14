@@ -11,6 +11,7 @@
 #include "ui.h"
 
 #define VIS_COLS 4u
+#define GRID_ROWS_MAX 12u
 #define CELL_W 4u
 #define GRID_X 4u
 #define BINS_Y 2u
@@ -34,6 +35,11 @@ static uint8_t live_r;
 static uint8_t live_c;
 static uint8_t shown_state;
 static uint8_t edit_val;
+static uint8_t drawn_view = NONE;
+static uint8_t drawn_v[GRID_ROWS_MAX][VIS_COLS];
+static uint8_t drawn_p[GRID_ROWS_MAX][VIS_COLS];
+static const char *shown_line[2];
+static uint8_t shown_pal[2];
 
 static uint8_t rows(void) {
     return td.t->rows;
@@ -136,7 +142,7 @@ static uint8_t cell_pal(uint8_t r, uint8_t c) {
     return (c & 1u) ? PAL_BLUE : PAL_TEXT;
 }
 
-static void draw_grid(void) {
+static void draw_axes(void) {
     char s[CELL_W];
     uint8_t r;
     uint8_t k;
@@ -149,18 +155,45 @@ static void draw_grid(void) {
         } else {
             ui_text((uint8_t)(GRID_X + k * CELL_W), BINS_Y, "    ", PAL_DIM);
         }
+        for (r = 0; r < rows(); r++) {
+            drawn_p[r][k] = NONE;
+            if (c >= cols()) {
+                ui_text((uint8_t)(GRID_X + k * CELL_W), (uint8_t)(GRID_Y + r), "    ", PAL_TEXT);
+            }
+        }
     }
     for (r = 0; r < rows(); r++) {
         fmt_int(s, 3, (int16_t)y_bin(r), 0);
         ui_textn(0, (uint8_t)(GRID_Y + r), s, 3, PAL_DIM);
+    }
+    drawn_view = view_c;
+}
+
+static void draw_grid(void) {
+    char s[CELL_W];
+    uint8_t r;
+    uint8_t k;
+    uint8_t c;
+    uint8_t v;
+    uint8_t p;
+    if (drawn_view != view_c) {
+        draw_axes();
+    }
+    for (r = 0; r < rows(); r++) {
         for (k = 0; k < VIS_COLS; k++) {
             c = (uint8_t)(view_c + k);
-            if (c < cols()) {
-                fmt_cell(s, (emode == M_EDIT && r == cur_r && c == cur_c) ? edit_val : td_value(cell_at(r, c)));
-                ui_textn((uint8_t)(GRID_X + k * CELL_W), (uint8_t)(GRID_Y + r), s, CELL_W, cell_pal(r, c));
-            } else {
-                ui_text((uint8_t)(GRID_X + k * CELL_W), (uint8_t)(GRID_Y + r), "    ", PAL_TEXT);
+            if (c >= cols()) {
+                continue;
             }
+            v = (emode == M_EDIT && r == cur_r && c == cur_c) ? edit_val : td_value(cell_at(r, c));
+            p = cell_pal(r, c);
+            if (v == drawn_v[r][k] && p == drawn_p[r][k]) {
+                continue;
+            }
+            drawn_v[r][k] = v;
+            drawn_p[r][k] = p;
+            fmt_cell(s, v);
+            ui_textn((uint8_t)(GRID_X + k * CELL_W), (uint8_t)(GRID_Y + r), s, CELL_W, p);
         }
     }
 }
@@ -198,8 +231,20 @@ static const char *err_text(uint8_t e) {
 }
 
 static void line(uint8_t y, const char *s, uint8_t pal) {
+    uint8_t i = (uint8_t)(y - STATUS_Y);
+    if (shown_line[i] == s && shown_pal[i] == pal) {
+        return;
+    }
+    shown_line[i] = s;
+    shown_pal[i] = pal;
     ui_text(0, y, "                    ", PAL_TEXT);
     ui_text(1, y, s, pal);
+}
+
+static void invalidate(void) {
+    drawn_view = NONE;
+    shown_line[0] = 0;
+    shown_line[1] = 0;
 }
 
 static void draw_status(void) {
@@ -263,6 +308,7 @@ void tedit_enter(void) {
     live_c = NONE;
     ui_clear();
     hdr_draw(titles[td.id]);
+    invalidate();
     shown_state = NONE;
     td.changed = 1;
 }
@@ -294,6 +340,7 @@ void tedit_tick(void) {
         if (td.state == TD_READY) {
             ui_clear();
             hdr_draw(titles[td.id]);
+            invalidate();
         }
         td.changed = 1;
     }
