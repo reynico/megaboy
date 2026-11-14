@@ -209,7 +209,7 @@ static void do_read(uint8_t id) {
     send_ack(LINK_C_READ, id, 0, TUNE_OK, 0);
 }
 
-static void do_write(uint8_t id, uint8_t cell, uint8_t val) {
+static void do_write(uint8_t id, uint8_t cell, uint8_t val, bool verify) {
     const tune_table_t *t = tune_get(id);
     if (!t) {
         send_ack(LINK_C_WRITE, id, cell, TUNE_E_TABLE, 0);
@@ -233,6 +233,11 @@ static void do_write(uint8_t id, uint8_t cell, uint8_t val) {
     }
     const uint8_t w[] = {MS1_CMD_PAGE, t->page_cmd, 'W', off, val};
     ecu.write(w, sizeof w);
+    if (!verify) {
+        page_buf[off] = val;
+        send_ack(LINK_C_WRITE, id, cell, TUNE_OK, val);
+        return;
+    }
     if (!read_page(t)) {
         send_ack(LINK_C_WRITE, id, cell, TUNE_E_ECU, cur);
         return;
@@ -273,8 +278,8 @@ static void handle_cmd(void) {
     }
     if (type == LINK_C_READ && len == 1) {
         do_read(cmd[0]);
-    } else if (type == LINK_C_WRITE && len == 3) {
-        do_write(cmd[0], cmd[1], cmd[2]);
+    } else if (type == LINK_C_WRITE && (len == 3 || len == LINK_WRITE_LEN)) {
+        do_write(cmd[0], cmd[1], cmd[2], len == 3 || (cmd[3] & LINK_WF_VERIFY));
     } else if (type == LINK_C_BURN && len == 1) {
         do_burn(cmd[0]);
     }
