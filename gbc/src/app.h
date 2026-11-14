@@ -26,6 +26,9 @@ typedef struct {
     uint16_t log_s;
     uint16_t log_num;
     uint32_t log_bytes;
+    uint8_t log_state;
+    uint8_t log_hz;
+    uint8_t log_req;
     uint8_t src;
     uint8_t link_age;
     uint8_t rt_age;

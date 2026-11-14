@@ -31,6 +31,15 @@ void hdr_tick(void) {
         s[3] = ' ';
         fmt_time(s + 4, app.log_s);
         ui_textn(11, 0, s, 9, PAL_TEXT);
+    } else if (app.src == SRC_LINK && app.log_state == LINK_LOG_FULL) {
+        ui_tile(10, 0, T_SPACE, PAL_TEXT);
+        ui_text(11, 0, "CARD FULL", PAL_RED);
+    } else if (app.src == SRC_LINK && app.log_state == LINK_LOG_ERR) {
+        ui_tile(10, 0, T_SPACE, PAL_TEXT);
+        ui_text(11, 0, " CARD ERR", PAL_RED);
+    } else if (app.src == SRC_LINK && app.log_state == LINK_LOG_NOCARD) {
+        ui_tile(10, 0, T_SPACE, PAL_TEXT);
+        ui_text(11, 0, "  NO CARD", PAL_AMBER);
     } else {
         ui_tile(10, 0, T_SPACE, PAL_TEXT);
         ui_text(11, 0, "  LOG OFF", PAL_DIM);

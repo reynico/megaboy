@@ -1,5 +1,7 @@
 #include "app.h"
 
+#include "link.h"
+#include "linkrx.h"
 #include "sim.h"
 #include "tdata.h"
 
@@ -9,6 +11,8 @@ static uint8_t acked;
 static uint8_t clear_ticks[W_COUNT];
 
 #define WARN_CLEAR_TICKS 30u
+#define LOG_REQ_START 1u
+#define LOG_REQ_STOP 2u
 #define LEAN_MIN_BOOST_X10 20
 #define LEAN_MIN_TPS_X10 500
 
@@ -79,6 +83,9 @@ void app_init(void) {
     app.log_s = 0;
     app.log_num = 41;
     app.log_bytes = 0;
+    app.log_state = LINK_LOG_IDLE;
+    app.log_hz = 0;
+    app.log_req = 0;
     app.src = SRC_SIM;
     app.link_age = 0;
     app.rt_age = 0;
@@ -104,7 +111,23 @@ static void link_age_step(void) {
     }
 }
 
+static void log_req_send(void) {
+    uint8_t v;
+    if (!app.log_req) {
+        return;
+    }
+    v = app.log_req == LOG_REQ_START;
+    if (linkrx_send(LINK_C_LOG, &v, 1)) {
+        app.log_req = 0;
+    }
+}
+
 void app_log_start(void) {
+    if (app.src != SRC_SIM) {
+        app.log_req = LOG_REQ_START;
+        log_req_send();
+        return;
+    }
     if (app.logging) {
         return;
     }
@@ -115,6 +138,11 @@ void app_log_start(void) {
 }
 
 void app_log_stop(void) {
+    if (app.src != SRC_SIM) {
+        app.log_req = LOG_REQ_STOP;
+        log_req_send();
+        return;
+    }
     app.logging = 0;
 }
 
@@ -124,6 +152,7 @@ void app_tick(void) {
         sim_step(&app.rt);
     } else {
         link_age_step();
+        log_req_send();
     }
     running = app.rt.rpm > 0u;
     if (app.set.auto_log && running && !was_running) {
@@ -143,7 +172,7 @@ void app_rt_received(void) {
 
 void app_second(void) {
     app.uptime_s++;
-    if (app.logging) {
+    if (app.logging && app.src == SRC_SIM) {
         app.log_s++;
         app.log_bytes += LOG_BYTES_PER_S;
     }

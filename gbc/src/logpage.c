@@ -5,6 +5,7 @@
 #include "app.h"
 #include "fmt.h"
 #include "hdr.h"
+#include "link.h"
 #include "tiles.h"
 #include "ui.h"
 
@@ -14,11 +15,38 @@ void logpage_enter(void) {
     ui_text(1, 3, "FILE", PAL_DIM);
     ui_text(1, 5, "TIME", PAL_DIM);
     ui_text(1, 7, "RATE", PAL_DIM);
-    ui_text(8, 7, "20 HZ", PAL_TEXT);
     ui_text(1, 9, "SIZE", PAL_DIM);
     ui_text(1, 11, "CARD", PAL_DIM);
-    ui_text(8, 11, "SIM", PAL_AMBER);
     ui_divider(15);
+}
+
+static void draw_card(void) {
+    const char *t = "SIM      ";
+    uint8_t pal = PAL_AMBER;
+    if (app.src != SRC_SIM) {
+        switch (app.log_state) {
+        case LINK_LOG_IDLE:
+            t = "OK       ";
+            pal = PAL_GREEN;
+            break;
+        case LINK_LOG_REC:
+            t = "WRITING  ";
+            pal = PAL_GREEN;
+            break;
+        case LINK_LOG_NOCARD:
+            t = "NO CARD  ";
+            break;
+        case LINK_LOG_FULL:
+            t = "FULL     ";
+            pal = PAL_RED;
+            break;
+        default:
+            t = "ERROR    ";
+            pal = PAL_RED;
+            break;
+        }
+    }
+    ui_text(8, 11, t, pal);
 }
 
 void logpage_tick(void) {
@@ -54,6 +82,17 @@ void logpage_tick(void) {
         s[6] = 'B';
     }
     ui_textn(8, 9, s, 7, PAL_TEXT);
+
+    if (app.src == SRC_SIM) {
+        ui_text(8, 7, "20 HZ", PAL_TEXT);
+    } else {
+        fmt_int(s, 3, app.log_hz, 0);
+        s[3] = ' ';
+        s[4] = 'H';
+        s[5] = 'Z';
+        ui_textn(8, 7, s, 6, app.logging ? PAL_TEXT : PAL_DIM);
+    }
+    draw_card();
 
     ui_text(1, 16, app.logging ? "A:STOP " : "A:START", PAL_DIM);
 }

@@ -71,11 +71,24 @@ static void on_time(void) {
     link_get_time(parser.buf + 1, &app.clk);
 }
 
+static void on_log(void) {
+    link_log_t l;
+    link_get_log(parser.buf, &l);
+    app.log_state = l.state;
+    app.logging = l.state == LINK_LOG_REC;
+    app.log_num = l.num;
+    app.log_s = l.secs;
+    app.log_bytes = l.bytes;
+    app.log_hz = l.hz;
+}
+
 static void on_frame(void) {
     if (parser.type == LINK_T_RT && parser.len == LINK_RT_LEN) {
         on_rt();
     } else if (parser.type == LINK_T_STATUS && parser.len == LINK_STATUS_LEN) {
         on_status();
+    } else if (parser.type == LINK_T_LOG && parser.len == LINK_LOG_LEN) {
+        on_log();
     } else if (parser.type == LINK_T_TIME && parser.len == LINK_TIME_LEN) {
         on_time();
     } else if (parser.type == LINK_T_TABLE) {
