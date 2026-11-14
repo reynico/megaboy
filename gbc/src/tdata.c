@@ -10,7 +10,7 @@
 tdata_t td;
 
 static uint8_t pend_cmd;
-static uint8_t pend_pl[3];
+static uint8_t pend_pl[LINK_WRITE_LEN];
 static uint8_t pend_len;
 static uint8_t pend_age;
 static uint8_t pend_tries;
@@ -23,11 +23,12 @@ static void send_pending(void) {
     }
 }
 
-static void start(uint8_t c, uint8_t a, uint8_t b, uint8_t v, uint8_t len) {
+static void start(uint8_t c, uint8_t a, uint8_t b, uint8_t v, uint8_t f, uint8_t len) {
     pend_cmd = c;
     pend_pl[0] = a;
     pend_pl[1] = b;
     pend_pl[2] = v;
+    pend_pl[3] = f;
     pend_len = len;
     pend_tries = 0;
     pend_age = TIMEOUT_TICKS;
@@ -44,7 +45,7 @@ void td_load(uint8_t id) {
     td.burned = 0;
     td.changed = 1;
     got = 0;
-    start(LINK_C_READ, id, 0, 0, 1);
+    start(LINK_C_READ, id, 0, 0, 0, 1);
 }
 
 uint8_t td_busy(void) {
@@ -97,7 +98,7 @@ uint8_t td_set(uint8_t cell, uint8_t val) {
 void td_burn(void) {
     if (td.state == TD_READY && !td_busy()) {
         td.err = TUNE_OK;
-        start(LINK_C_BURN, td.id, 0, 0, 1);
+        start(LINK_C_BURN, td.id, 0, 0, 0, 1);
     }
 }
 
@@ -141,9 +142,12 @@ static void ack_read(uint8_t st) {
     td.state = TD_READY;
 }
 
+static void next_step(void);
+
 void td_on_ack(const uint8_t *p) {
     uint8_t c = p[0];
     uint8_t st = p[3];
+    uint8_t verified = pend_pl[3] & LINK_WF_VERIFY;
     if (c != pend_cmd || p[1] != td.id) {
         return;
     }
@@ -161,9 +165,10 @@ void td_on_ack(const uint8_t *p) {
             td.err = st;
             td.tgt_cell = TD_NO_CELL;
             td.discarding = 0;
-        } else if (p[2] == td.tgt_cell && p[4] == td.tgt_val) {
+        } else if (verified && p[2] == td.tgt_cell && p[4] == td.tgt_val) {
             td.tgt_cell = TD_NO_CELL;
         }
+        next_step();
         return;
     }
     if (c == LINK_C_BURN) {
@@ -200,6 +205,21 @@ static void next_discard(void) {
     td.changed = 1;
 }
 
+static void next_step(void) {
+    uint8_t v;
+    if (td.state != TD_READY || pend_cmd != NO_CMD) {
+        return;
+    }
+    if (td.discarding && td.tgt_cell == TD_NO_CELL) {
+        next_discard();
+    }
+    if (td.tgt_cell == TD_NO_CELL) {
+        return;
+    }
+    v = step_to(td.blob[td.tgt_cell], td.tgt_val);
+    start(LINK_C_WRITE, td.id, td.tgt_cell, v, v == td.tgt_val ? LINK_WF_VERIFY : 0u, LINK_WRITE_LEN);
+}
+
 void td_tick(void) {
     if (pend_cmd != NO_CMD) {
         if (pend_age < TIMEOUT_TICKS) {
@@ -220,19 +240,5 @@ void td_tick(void) {
         send_pending();
         return;
     }
-    if (td.state != TD_READY) {
-        return;
-    }
-    if (td.discarding && td.tgt_cell == TD_NO_CELL) {
-        next_discard();
-    }
-    if (td.tgt_cell == TD_NO_CELL) {
-        return;
-    }
-    if (td.blob[td.tgt_cell] == td.tgt_val) {
-        td.tgt_cell = TD_NO_CELL;
-        td.changed = 1;
-        return;
-    }
-    start(LINK_C_WRITE, td.id, td.tgt_cell, step_to(td.blob[td.tgt_cell], td.tgt_val), 3);
+    next_step();
 }

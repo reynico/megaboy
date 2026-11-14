@@ -22,10 +22,13 @@ static int sent;
 static int bridge_on = 1;
 static int writes;
 static int burns;
+static int verifies;
+static uint8_t last_len;
 
 uint8_t linkrx_send(uint8_t type, const uint8_t *payload, uint8_t len) {
     last_type = type;
     memcpy(last_pl, payload, len);
+    last_len = len;
     sent++;
     return 1;
 }
@@ -62,6 +65,9 @@ static void bridge(void) {
         if (st == TUNE_OK) {
             page[cell] = last_pl[2];
             writes++;
+            if (last_len == 3 || (last_pl[3] & LINK_WF_VERIFY)) {
+                verifies++;
+            }
         }
         ack(LINK_C_WRITE, last_pl[0], cell, st, page[cell]);
     } else if (last_type == LINK_C_BURN) {
@@ -86,6 +92,7 @@ static void setup(void) {
     bridge_on = 1;
     writes = 0;
     burns = 0;
+    verifies = 0;
     td_load(TUNE_VE1);
     run(2);
 }
@@ -108,6 +115,7 @@ static void test_edit_and_burn(void) {
     run(20);
     CHECK(page[5] == want);
     CHECK(writes == 3);
+    CHECK(verifies == 1);
     CHECK(!td_busy());
     CHECK(td_dirty());
     td_burn();
@@ -134,6 +142,30 @@ static void test_discard(void) {
     CHECK(burns == 0);
 }
 
+static void test_steps_on_ack(void) {
+    setup();
+    td_set(5, (uint8_t)(page[5] + 25));
+    run(4);
+    CHECK(!td_busy());
+    CHECK(writes == 3);
+}
+
+static void test_retarget_needs_verify(void) {
+    setup();
+    uint8_t o = page[5];
+    td_set(5, (uint8_t)(o + 25));
+    td_tick();
+    bridge();
+    CHECK(page[5] == o + 10 && verifies == 0);
+    td_set(5, (uint8_t)(o + 20));
+    bridge();
+    CHECK(page[5] == o + 20 && verifies == 0);
+    CHECK(td_busy());
+    bridge();
+    CHECK(verifies == 1);
+    CHECK(!td_busy());
+}
+
 static void test_limits(void) {
     setup();
     td_set(0, 255);
@@ -156,6 +188,8 @@ int main(void) {
     test_load();
     test_edit_and_burn();
     test_discard();
+    test_steps_on_ack();
+    test_retarget_needs_verify();
     test_limits();
     test_timeout();
     if (fails) {
