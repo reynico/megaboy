@@ -7,6 +7,7 @@
 #include "boost.h"
 #include "clockset.h"
 #include "dash.h"
+#include "gauge.h"
 #include "logpage.h"
 #include "menu.h"
 #include "settings.h"
@@ -25,9 +26,10 @@ static const screen_t screens[SCR_COUNT] = {
     {about_enter, about_tick, about_input},
     {tedit_enter, tedit_tick, tedit_input},
     {clockset_enter, clockset_tick, clockset_input},
+    {gauge_enter, gauge_tick, gauge_input},
 };
 
-static const uint8_t pages[] = {SCR_DASH, SCR_BOOST, SCR_LOG};
+static const uint8_t pages[] = {SCR_DASH, SCR_GAUGE, SCR_BOOST, SCR_LOG};
 #define PAGE_COUNT (sizeof pages / sizeof pages[0])
 
 static uint8_t current;
@@ -40,6 +42,7 @@ static uint8_t is_page(void) {
 
 void screen_go(uint8_t id) {
     uint8_t i;
+    HIDE_SPRITES;
     current = id;
     for (i = 0; i < PAGE_COUNT; i++) {
         if (pages[i] == id) {

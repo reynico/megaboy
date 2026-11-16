@@ -2,6 +2,7 @@
 #include <gb/gb.h>
 
 #include "app.h"
+#include "gauge.h"
 #include "input.h"
 #include "linkrx.h"
 #include "save.h"
@@ -21,6 +22,8 @@
 #define C_WBG RGB(22, 4, 2)
 #define C_WFG RGB(31, 31, 31)
 #define C_WDIM RGB(31, 27, 25)
+
+static const palette_color_t needle_pal[4] = {C_BG, C_RED, C_AMBER, C_FG};
 
 static const palette_color_t pals[PAL_COUNT * 4] = {
     C_BG, C_TRACK, C_FG, C_FG,
@@ -52,10 +55,12 @@ void main(void) {
     if (_cpu == CGB_TYPE) {
         cpu_fast();
         set_bkg_palette(0, PAL_COUNT, pals);
+        set_sprite_palette(0, 1, needle_pal);
     } else {
         BGP_REG = 0x1bu;
     }
     tiles_load();
+    gauge_load();
     sound_init();
     app_init();
     if (save_load(&app.set)) {

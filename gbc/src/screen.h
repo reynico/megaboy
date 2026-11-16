@@ -19,6 +19,7 @@ enum {
     SCR_ABOUT,
     SCR_TEDIT,
     SCR_CLOCK,
+    SCR_GAUGE,
     SCR_COUNT
 };
 
