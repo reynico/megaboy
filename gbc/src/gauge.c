@@ -60,7 +60,6 @@ void gauge_enter(void) {
     ui_clear();
     hdr_draw("GAUGE");
     if (_cpu != CGB_TYPE) {
-        ui_text(1, 8, "NEEDS A GBC", PAL_TEXT);
         return;
     }
     draw_face();

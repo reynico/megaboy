@@ -1,5 +1,6 @@
 #include "screen.h"
 
+#include <gb/cgb.h>
 #include <gb/gb.h>
 
 #include "about.h"
@@ -76,13 +77,25 @@ void screen_tick(void) {
     screens[current].tick();
 }
 
+static uint8_t page_ok(uint8_t i) {
+    return pages[i] != SCR_GAUGE || _cpu == CGB_TYPE;
+}
+
+static void page_step(uint8_t step) {
+    uint8_t i = page;
+    do {
+        i = (uint8_t)((i + step) % PAGE_COUNT);
+    } while (!page_ok(i));
+    screen_go(pages[i]);
+}
+
 static uint8_t page_input(uint8_t pressed) {
     if (pressed & J_RIGHT) {
-        screen_go(pages[(page + 1u) % PAGE_COUNT]);
+        page_step(1u);
         return 1;
     }
     if (pressed & J_LEFT) {
-        screen_go(pages[(page + PAGE_COUNT - 1u) % PAGE_COUNT]);
+        page_step((uint8_t)(PAGE_COUNT - 1u));
         return 1;
     }
     if (pressed & J_START) {
