@@ -83,6 +83,9 @@ def capture(rom: Path) -> dict[str, Image.Image]:
     shots["dash"] = g.shot()
     g.press("right")
     g.wait(120)
+    shots["gauge"] = g.shot()
+    g.press("right")
+    g.wait(120)
     shots["boost"] = g.shot()
     g.press("right")
     g.wait(60)
@@ -134,8 +137,8 @@ def main() -> int:
     for name, im in shots.items():
         framed[name] = frame(im)
         framed[name].save(args.out / f"{name}.png", optimize=True)
-    order = ["dash", "boost", "log", "warning", "menu", "settings", "tune", "about"]
-    g = gallery([framed[n] for n in order], 4)
+    order = ["dash", "gauge", "boost", "log", "warning", "menu", "settings", "tune", "about"]
+    g = gallery([framed[n] for n in order], 5)
     g = g.resize((g.width // 3, g.height // 3), Image.LANCZOS)
     g.save(args.out / "gallery.png", optimize=True)
     print(f"wrote {len(framed) + 1} images to {args.out}", file=sys.stderr)
