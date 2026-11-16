@@ -10,7 +10,10 @@ all: $(ROM)
 src/font.c: ../tools/mkfont.py
 	python3 -I ../tools/mkfont.py $@
 
-$(ROM): $(SRC) src/font.c $(wildcard src/*.h) ../common/link.h ../common/rtc.h ../common/tune.h
+src/gauge_gfx.c: ../tools/mkgauge.py ../tools/mkfont.py
+	python3 -I ../tools/mkgauge.py $@
+
+$(ROM): $(SRC) src/font.c src/gauge_gfx.c $(wildcard src/*.h) ../common/link.h ../common/rtc.h ../common/tune.h
 	@mkdir -p build
 	$(LCC) -I../common -Wm-yc -Wm-yt0x1B -Wm-ya1 -Wm-yn"MEGABOY" -o $@ $(SRC)
 
