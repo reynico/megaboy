@@ -176,7 +176,7 @@ static void gb_send(uint8_t type, const uint8_t *payload, uint8_t len) {
 }
 
 static void send_status(void) {
-    link_status_t st = {ecu_ok ? LINK_ST_OK : LINK_ST_WAIT, ecu_type};
+    link_status_t st = {ecu_ok ? LINK_ST_OK : LINK_ST_WAIT, ecu_type, LINK_HZ_DEFAULT};
     uint8_t pl[LINK_STATUS_LEN];
     gb_send(LINK_T_STATUS, pl, link_put_status(pl, &st));
 }

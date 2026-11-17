@@ -41,7 +41,7 @@ static void test_rt_roundtrip(void) {
 }
 
 static void test_status(void) {
-    link_status_t a = {LINK_ST_OK, LINK_ECU_MS1};
+    link_status_t a = {LINK_ST_OK, LINK_ECU_MS1, 40};
     link_status_t b;
     uint8_t pl[LINK_STATUS_LEN];
     uint8_t fr[LINK_FRAME_MAX];
@@ -50,7 +50,7 @@ static void test_status(void) {
     link_parser_reset(&p);
     CHECK(feed_all(&p, fr, fl) == 1);
     link_get_status(p.buf, &b);
-    CHECK(b.state == LINK_ST_OK && b.ecu == LINK_ECU_MS1);
+    CHECK(b.state == LINK_ST_OK && b.ecu == LINK_ECU_MS1 && b.hz == 40);
 }
 
 static void test_noise_and_errors(void) {

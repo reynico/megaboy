@@ -30,7 +30,11 @@
 #define LINK_WF_VERIFY 0x01u
 
 #define LINK_RT_LEN 20u
-#define LINK_STATUS_LEN 2u
+#define LINK_STATUS_LEN 3u
+#define LINK_ECU_LEN 2u
+#define LINK_HZ_MIN 10u
+#define LINK_HZ_MAX 40u
+#define LINK_HZ_DEFAULT 20u
 #define LINK_TIME_LEN 7u
 #define LINK_TIME_SET_LEN 6u
 #define LINK_LOG_LEN 17u
@@ -69,6 +73,7 @@ typedef struct {
 typedef struct {
     uint8_t state;
     uint8_t ecu;
+    uint8_t hz;
 } link_status_t;
 
 typedef struct {

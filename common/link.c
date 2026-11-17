@@ -68,12 +68,14 @@ void link_get_rt(const uint8_t *in, link_rt_t *rt) {
 uint8_t link_put_status(uint8_t *out, const link_status_t *st) {
     out[0] = st->state;
     out[1] = st->ecu;
+    out[2] = st->hz;
     return LINK_STATUS_LEN;
 }
 
 void link_get_status(const uint8_t *in, link_status_t *st) {
     st->state = in[0];
     st->ecu = in[1];
+    st->hz = in[2];
 }
 
 uint8_t link_put_time(uint8_t *out, const rtc_time_t *t) {
