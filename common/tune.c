@@ -2,35 +2,37 @@
 
 static const tune_item_t ms1_limits[] = {{0x00u, 2u}, {0x00u, 6u}, {0x00u, 20u}, {0x00u, 128u}};
 static const tune_item_t ms2_limits[] = {{0x04u, 656u}, {0x0au, 678u}, {0x0au, 685u}, {0x0au, 691u}};
+static const tune_order_t ms1_order[] = {{0u, 1u}, {2u, 1u}, {3u, 1u}};
+static const tune_order_t ms2_order[] = {{1u, 0u}, {3u, 0u}, {1u, 2u}};
 
 static const tune_table_t ms1_tables[TUNE_COUNT] = {
     {0x01u, 12u, 12u, TUNE_U08, TUNE_U08, TUNE_U08, 0u, 158u, 170u, 10, 250, 10, 1, TUNE_F_INT, TUNE_A_X100,
-     TUNE_A_RAW, 0u, 0},
+     TUNE_A_RAW, 0u, 0, 0, 0u},
     {0x03u, 12u, 12u, TUNE_U08, TUNE_U08, TUNE_U08, 0u, 144u, 156u, 0, 156, 10, 1, TUNE_F_MS1_ADV, TUNE_A_X100,
-     TUNE_A_RAW, 0u, 0},
+     TUNE_A_RAW, 0u, 0, 0, 0u},
     {0x06u, 8u, 8u, TUNE_U08, TUNE_U08, TUNE_U08, 0u, 64u, 72u, 26, 230, 10, 1, TUNE_F_MS1_AFR, TUNE_A_X100,
-     TUNE_A_RAW, 0u, 0},
+     TUNE_A_RAW, 0u, 0, 0, 0u},
     {0x00u, 4u, 1u, TUNE_U08, TUNE_U08, TUNE_U08, 0u, 0u, 0u, 20, 90, 10, 1, TUNE_F_X100, TUNE_A_RAW, TUNE_A_RAW, 0u,
-     ms1_limits},
+     ms1_limits, ms1_order, 3u},
     {0x07u, 6u, 6u, TUNE_U08, TUNE_U08, TUNE_U08, 0u, 36u, 42u, 90, 250, 10, 1, TUNE_F_INT, TUNE_A_X100,
-     TUNE_A_MS1_TPS, 1u, 0},
+     TUNE_A_MS1_TPS, 1u, 0, 0, 0u},
     {0x07u, 6u, 6u, TUNE_U08, TUNE_U08, TUNE_U08, 48u, 84u, 90u, 0, 242, 10, 1, TUNE_F_MS1_DUTY, TUNE_A_X100,
-     TUNE_A_MS1_TPS, 1u, 0},
+     TUNE_A_MS1_TPS, 1u, 0, 0, 0u},
 };
 
 static const tune_table_t ms2_tables[TUNE_COUNT] = {
     {0x09u, 16u, 16u, TUNE_U08, TUNE_U16, TUNE_S16, 0u, 768u, 864u, 10, 250, 10, 1, TUNE_F_INT, TUNE_A_RAW,
-     TUNE_A_DIV10, 0u, 0},
+     TUNE_A_DIV10, 0u, 0, 0, 0u},
     {0x0au, 12u, 12u, TUNE_S16, TUNE_U16, TUNE_S16, 0u, 576u, 624u, -100, 500, 30, 5, TUNE_F_X10, TUNE_A_RAW,
-     TUNE_A_DIV10, 0u, 0},
+     TUNE_A_DIV10, 0u, 0, 0, 0u},
     {0x04u, 12u, 12u, TUNE_U08, TUNE_U16, TUNE_S16, 48u, 374u, 422u, 90, 200, 10, 1, TUNE_F_X10, TUNE_A_RAW,
-     TUNE_A_DIV10, 0u, 0},
+     TUNE_A_DIV10, 0u, 0, 0, 0u},
     {0x04u, 4u, 1u, TUNE_S16, TUNE_S16, TUNE_S16, 0u, 0u, 0u, 2000, 9000, 1000, 100, TUNE_F_INT, TUNE_A_RAW,
-     TUNE_A_RAW, 0u, ms2_limits},
+     TUNE_A_RAW, 0u, ms2_limits, ms2_order, 3u},
     {0x05u, 8u, 8u, TUNE_S16, TUNE_U16, TUNE_S16, 76u, 220u, 204u, 900, 2500, 100, 10, TUNE_F_X10, TUNE_A_RAW,
-     TUNE_A_DIV10, 1u, 0},
+     TUNE_A_DIV10, 1u, 0, 0, 0u},
     {0x05u, 8u, 8u, TUNE_U08, TUNE_U16, TUNE_S16, 236u, 316u, 300u, 0, 100, 10, 1, TUNE_F_INT, TUNE_A_RAW,
-     TUNE_A_DIV10, 1u, 0},
+     TUNE_A_DIV10, 1u, 0, 0, 0u},
 };
 
 const tune_table_t *tune_get(uint8_t ecu, uint8_t id) {
@@ -127,6 +129,19 @@ uint8_t tune_check_write(const tune_table_t *t, uint16_t cell, int16_t cur, int1
     }
     if (d > t->delta) {
         return TUNE_E_DELTA;
+    }
+    return TUNE_OK;
+}
+
+uint8_t tune_check_order(const tune_table_t *t, const int16_t *vals, uint16_t cell, int16_t val) {
+    uint8_t i;
+    for (i = 0; i < t->norder; i++) {
+        const tune_order_t *o = &t->order[i];
+        int16_t lo = o->lo == cell ? val : vals[o->lo];
+        int16_t hi = o->hi == cell ? val : vals[o->hi];
+        if (lo > hi) {
+            return TUNE_E_ORDER;
+        }
     }
     return TUNE_OK;
 }

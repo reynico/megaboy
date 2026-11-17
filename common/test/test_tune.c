@@ -135,7 +135,29 @@ static void test_checks(void) {
     CHECK(tune_check_write(lim2, 3, -30000, 9000) == TUNE_E_DELTA);
 }
 
+static void test_order(void) {
+    const tune_table_t *l1 = tune_get(TUNE_ECU_MS1, TUNE_LIMITS);
+    const tune_table_t *l2 = tune_get(TUNE_ECU_MS2, TUNE_LIMITS);
+    const tune_table_t *ve = tune_get(TUNE_ECU_MS1, TUNE_VE1);
+    const int16_t v1[4] = {60, 70, 40, 65};
+    const int16_t v2[4] = {7000, 4000, 4500, 6800};
+    CHECK(tune_check_order(l1, v1, 0, 70) == TUNE_OK);
+    CHECK(tune_check_order(l1, v1, 0, 71) == TUNE_E_ORDER);
+    CHECK(tune_check_order(l1, v1, 1, 64) == TUNE_E_ORDER);
+    CHECK(tune_check_order(l1, v1, 1, 65) == TUNE_OK);
+    CHECK(tune_check_order(l1, v1, 2, 71) == TUNE_E_ORDER);
+    CHECK(tune_check_order(l1, v1, 3, 71) == TUNE_E_ORDER);
+    CHECK(tune_check_order(l2, v2, 1, 4500) == TUNE_OK);
+    CHECK(tune_check_order(l2, v2, 1, 4600) == TUNE_E_ORDER);
+    CHECK(tune_check_order(l2, v2, 2, 3900) == TUNE_E_ORDER);
+    CHECK(tune_check_order(l2, v2, 3, 7100) == TUNE_E_ORDER);
+    CHECK(tune_check_order(l2, v2, 0, 6700) == TUNE_E_ORDER);
+    CHECK(tune_check_order(l2, v2, 0, 6800) == TUNE_OK);
+    CHECK(tune_check_order(ve, v1, 0, 250) == TUNE_OK);
+}
+
 int main(void) {
+    test_order();
     test_get();
     test_ms1_layout();
     test_ms2_layout();

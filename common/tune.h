@@ -39,11 +39,17 @@
 #define TUNE_E_DELTA 4u
 #define TUNE_E_ECU 5u
 #define TUNE_E_VERIFY 6u
+#define TUNE_E_ORDER 7u
 
 typedef struct {
     uint8_t page;
     uint16_t off;
 } tune_item_t;
+
+typedef struct {
+    uint8_t lo;
+    uint8_t hi;
+} tune_order_t;
 
 typedef struct {
     uint8_t page;
@@ -64,6 +70,8 @@ typedef struct {
     uint8_t yaxis;
     uint8_t y_tps;
     const tune_item_t *items;
+    const tune_order_t *order;
+    uint8_t norder;
 } tune_table_t;
 
 const tune_table_t *tune_get(uint8_t ecu, uint8_t id);
@@ -75,3 +83,4 @@ int16_t tune_decode(uint8_t type, const uint8_t *p);
 void tune_encode(uint8_t type, int16_t v, uint8_t *p);
 int16_t tune_axis(uint8_t axis, int16_t raw);
 uint8_t tune_check_write(const tune_table_t *t, uint16_t cell, int16_t cur, int16_t val);
+uint8_t tune_check_order(const tune_table_t *t, const int16_t *vals, uint16_t cell, int16_t val);
