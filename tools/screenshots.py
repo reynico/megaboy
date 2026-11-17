@@ -7,7 +7,7 @@ from PIL import Image
 from pyboy import PyBoy
 
 SCALE = 3
-BOOT_FRAMES = 300
+BOOT_FRAMES = 340
 
 
 def main() -> int:
