@@ -735,6 +735,8 @@ int main(void) {
 
         if (ecu_type != LINK_ECU_NONE && !ecu_ok && now >= ECU_QUIET_MS && now - last_try >= RETRY_MS) {
             last_try = now;
+            vals_id = NO_PAGE;
+            page_cached = NO_PAGE;
             ecu_ok = ecu_type == LINK_ECU_MS1 ? ms1_connect() : ms2_connect();
             errors = 0;
         }
