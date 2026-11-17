@@ -125,12 +125,14 @@ void td_on_table(const uint8_t *p, uint8_t len) {
     uint16_t off;
     uint8_t n;
     uint8_t i;
+    uint16_t blen;
     if (td.state != TD_LOADING || len < LINK_TABLE_HDR || p[0] != td.id || (len - LINK_TABLE_HDR) & 1u) {
         return;
     }
     off = (uint16_t)(p[1] | (uint16_t)p[2] << 8);
     n = (uint8_t)((len - LINK_TABLE_HDR) >> 1);
-    if (off + n > tune_blob_len(td.t)) {
+    blen = tune_blob_len(td.t);
+    if (off > blen || n > blen - off) {
         return;
     }
     for (i = 0; i < n; i++) {
