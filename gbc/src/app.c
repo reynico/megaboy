@@ -2,7 +2,6 @@
 
 #include "link.h"
 #include "linkrx.h"
-#include "sim.h"
 #include "tdata.h"
 
 app_t app;
@@ -66,8 +65,6 @@ static void peak_update(void) {
 }
 
 void app_init(void) {
-    sim_init();
-    sim_step(&app.rt);
     app.set.clt_warn_c = 100;
     app.set.afr_lean_x10 = 130;
     app.set.rpm_shift = 6800;
@@ -82,13 +79,13 @@ void app_init(void) {
     app.blink = 0;
     app.logging = 0;
     app.log_s = 0;
-    app.log_num = 41;
+    app.log_num = 0;
     app.log_bytes = 0;
     app.log_state = LINK_LOG_IDLE;
     app.log_hz = 0;
     app.log_req = 0;
     app.log_dated = 0;
-    app.src = SRC_SIM;
+    app.src = SRC_LOST;
     app.link_age = 0;
     app.rt_age = 0;
     app.ecu = 0;
@@ -125,37 +122,19 @@ static void log_req_send(void) {
 }
 
 void app_log_start(void) {
-    if (app.src != SRC_SIM) {
-        app.log_req = LOG_REQ_START;
-        log_req_send();
-        return;
-    }
-    if (app.logging) {
-        return;
-    }
-    app.logging = 1;
-    app.log_num++;
-    app.log_s = 0;
-    app.log_bytes = 0;
+    app.log_req = LOG_REQ_START;
+    log_req_send();
 }
 
 void app_log_stop(void) {
-    if (app.src != SRC_SIM) {
-        app.log_req = LOG_REQ_STOP;
-        log_req_send();
-        return;
-    }
-    app.logging = 0;
+    app.log_req = LOG_REQ_STOP;
+    log_req_send();
 }
 
 void app_tick(void) {
     uint8_t running;
-    if (app.src == SRC_SIM) {
-        sim_step(&app.rt);
-    } else {
-        link_age_step();
-        log_req_send();
-    }
+    link_age_step();
+    log_req_send();
     running = app.rt.rpm > 0u;
     if (app.set.auto_log && running && !was_running) {
         app_log_start();
@@ -174,8 +153,4 @@ void app_rt_received(void) {
 
 void app_second(void) {
     app.uptime_s++;
-    if (app.logging && app.src == SRC_SIM) {
-        app.log_s++;
-        app.log_bytes += LOG_BYTES_PER_S;
-    }
 }

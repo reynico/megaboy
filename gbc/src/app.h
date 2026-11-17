@@ -42,9 +42,8 @@ typedef struct {
     rtc_time_t clk;
 } app_t;
 
-#define LOG_BYTES_PER_S 3200u
 
-enum { SRC_SIM, SRC_LINK, SRC_LOST };
+enum { SRC_LINK, SRC_LOST };
 
 #define LINK_LOST_TICKS 20u
 #define RT_STALE_TICKS 10u

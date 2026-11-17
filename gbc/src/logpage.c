@@ -26,30 +26,28 @@ static void two(char *s, uint8_t v) {
 }
 
 static void draw_card(void) {
-    const char *t = "SIM      ";
+    const char *t;
     uint8_t pal = PAL_AMBER;
-    if (app.src != SRC_SIM) {
-        switch (app.log_state) {
-        case LINK_LOG_IDLE:
-            t = "OK       ";
-            pal = PAL_GREEN;
-            break;
-        case LINK_LOG_REC:
-            t = "WRITING  ";
-            pal = PAL_GREEN;
-            break;
-        case LINK_LOG_NOCARD:
-            t = "NO CARD  ";
-            break;
-        case LINK_LOG_FULL:
-            t = "FULL     ";
-            pal = PAL_RED;
-            break;
-        default:
-            t = "ERROR    ";
-            pal = PAL_RED;
-            break;
-        }
+    switch (app.log_state) {
+    case LINK_LOG_IDLE:
+        t = "OK       ";
+        pal = PAL_GREEN;
+        break;
+    case LINK_LOG_REC:
+        t = "WRITING  ";
+        pal = PAL_GREEN;
+        break;
+    case LINK_LOG_NOCARD:
+        t = "NO CARD  ";
+        break;
+    case LINK_LOG_FULL:
+        t = "FULL     ";
+        pal = PAL_RED;
+        break;
+    default:
+        t = "ERROR    ";
+        pal = PAL_RED;
+        break;
     }
     ui_text(8, 11, t, pal);
 }
@@ -58,7 +56,7 @@ enum { L_FILE, L_TIME, L_RATE, L_SIZE, L_CARD, L_KEYS };
 
 static void draw_file(void) {
     char s[11];
-    if (app.src != SRC_SIM && app.log_dated) {
+    if (app.log_dated) {
         two(s, app.log_start.mo);
         s[2] = '-';
         two(s + 3, app.log_start.dd);
@@ -100,10 +98,6 @@ static void draw_size(uint32_t kb) {
 
 static void draw_rate(void) {
     char s[6];
-    if (app.src == SRC_SIM) {
-        ui_text(8, 7, "20 HZ", PAL_TEXT);
-        return;
-    }
     fmt_int(s, 3, app.log_hz, 0);
     s[3] = ' ';
     s[4] = 'H';
@@ -114,8 +108,7 @@ static void draw_rate(void) {
 void logpage_tick(void) {
     char s[5];
     uint32_t kb = app.log_bytes >> 10;
-    uint8_t sim = app.src == SRC_SIM;
-    int16_t file = (!sim && app.log_dated) ? (int16_t)(0x4000u | (uint16_t)app.log_start.dd << 11 |
+    int16_t file = app.log_dated ? (int16_t)(0x4000u | (uint16_t)app.log_start.dd << 11 |
                                                       (uint16_t)app.log_start.hh << 6 | app.log_start.mi)
                                            : (int16_t)app.log_num;
 
@@ -127,13 +120,13 @@ void logpage_tick(void) {
         fmt_time(s, app.log_s);
         ui_textn(8, 5, s, 5, PAL_TEXT);
     }
-    if (ui_changed(L_RATE, app.log_hz, (uint8_t)(app.logging | sim << 1))) {
+    if (ui_changed(L_RATE, app.log_hz, app.logging)) {
         draw_rate();
     }
     if (ui_changed(L_SIZE, (int16_t)(uint16_t)kb, 0)) {
         draw_size(kb);
     }
-    if (ui_changed(L_CARD, app.log_state, sim)) {
+    if (ui_changed(L_CARD, app.log_state, 0)) {
         draw_card();
     }
     if (ui_changed(L_KEYS, 0, app.logging)) {

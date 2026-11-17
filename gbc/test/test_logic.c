@@ -2,7 +2,6 @@
 #include <string.h>
 
 #include "fmt.h"
-#include "sim.h"
 
 static int fails;
 
@@ -53,31 +52,6 @@ static void test_fmt(void) {
     CHECK(eq(b, "00:00"));
     fmt_time(b, 65535);
     CHECK(eq(b, "99:59"));
-}
-
-static void test_sim(void) {
-    rt_t rt;
-    int i;
-    int16_t bmax = -1000;
-    int16_t bmin = 1000;
-    uint16_t rmax = 0;
-    uint16_t rmin = 0xffff;
-    sim_init();
-    for (i = 0; i < 900; i++) {
-        sim_step(&rt);
-        if (rt.boost_psi_x10 > bmax) bmax = rt.boost_psi_x10;
-        if (rt.boost_psi_x10 < bmin) bmin = rt.boost_psi_x10;
-        if (rt.rpm > rmax) rmax = rt.rpm;
-        if (rt.rpm < rmin) rmin = rt.rpm;
-        CHECK(rt.afr_x10 > 100 && rt.afr_x10 < 180);
-        CHECK(rt.tps_x10 >= 0 && rt.tps_x10 <= 1000);
-        CHECK(rt.clt_c_x10 >= 880 && rt.clt_c_x10 < 910);
-        CHECK(rt.map_x10 > 300 && rt.map_x10 < 2400);
-    }
-    CHECK(rmax > 7000 && rmax < 7300);
-    CHECK(rmin > 2800 && rmin < 3900);
-    CHECK(bmax > 150 && bmax <= 185);
-    CHECK(bmin < -80 && bmin >= -100);
 }
 
 static void ref_fit(char *out, int w, const char *s) {
@@ -146,7 +120,6 @@ int main(void) {
     test_bar_px();
     test_fmt();
     test_fmt_all();
-    test_sim();
     if (fails) {
         fprintf(stderr, "%d failures\n", fails);
         return 1;
