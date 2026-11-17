@@ -37,7 +37,6 @@
 #define GBQ_SIZE 512u
 #define GBQ_MASK (GBQ_SIZE - 1u)
 #define MS1_POLL_MS 40
-#define MS2_POLL_MS 50
 #define PRINT_MS 500
 #define STATUS_MS 1000
 #define RETRY_MS 1000
@@ -60,6 +59,7 @@
 #define CFG_MAGIC1 'B'
 
 static uint8_t ecu_type;
+static uint8_t ms2_hz = LINK_HZ_DEFAULT;
 static bool ecu_ok;
 static uint8_t errors;
 static uint32_t last_poll;
@@ -87,21 +87,31 @@ static uint32_t now_ms(void) {
     return to_ms_since_boot(get_absolute_time());
 }
 
+static bool hz_ok(uint8_t hz) {
+    return hz >= LINK_HZ_MIN && hz <= LINK_HZ_MAX && hz % 10u == 0;
+}
+
 static uint8_t cfg_load(void) {
     const uint8_t *c = (const uint8_t *)(XIP_BASE + CFG_OFFSET);
+    ms2_hz = LINK_HZ_DEFAULT;
     if (c[0] != CFG_MAGIC0 || c[1] != CFG_MAGIC1 || (uint8_t)~c[2] != c[3]) {
         return LINK_ECU_NONE;
+    }
+    if ((uint8_t)~c[4] == c[5] && hz_ok(c[4])) {
+        ms2_hz = c[4];
     }
     return c[2] == LINK_ECU_MS1 || c[2] == LINK_ECU_MS2 ? c[2] : LINK_ECU_NONE;
 }
 
-static void cfg_save(uint8_t type) {
+static void cfg_save(uint8_t type, uint8_t hz) {
     uint8_t page[FLASH_PAGE_SIZE];
     memset(page, 0xff, sizeof page);
     page[0] = CFG_MAGIC0;
     page[1] = CFG_MAGIC1;
     page[2] = type;
     page[3] = (uint8_t)~type;
+    page[4] = hz;
+    page[5] = (uint8_t)~hz;
     uint32_t irq = save_and_disable_interrupts();
     flash_range_erase(CFG_OFFSET, FLASH_SECTOR_SIZE);
     flash_range_program(CFG_OFFSET, page, sizeof page);
@@ -176,7 +186,7 @@ static void gb_send(uint8_t type, const uint8_t *payload, uint8_t len) {
 }
 
 static void send_status(void) {
-    link_status_t st = {ecu_ok ? LINK_ST_OK : LINK_ST_WAIT, ecu_type, LINK_HZ_DEFAULT};
+    link_status_t st = {ecu_ok ? LINK_ST_OK : LINK_ST_WAIT, ecu_type, ms2_hz};
     uint8_t pl[LINK_STATUS_LEN];
     gb_send(LINK_T_STATUS, pl, link_put_status(pl, &st));
 }
@@ -652,23 +662,32 @@ static void do_burn(uint8_t id) {
     send_ack(LINK_C_BURN, id, 0, ok ? TUNE_OK : TUNE_E_ECU, 0);
 }
 
-static void do_ecu(uint8_t type) {
-    if ((type != LINK_ECU_MS1 && type != LINK_ECU_MS2) || type == ecu_type) {
+static void do_ecu(uint8_t type, uint8_t hz) {
+    bool new_type = (type == LINK_ECU_MS1 || type == LINK_ECU_MS2) && type != ecu_type;
+    bool new_hz = hz_ok(hz) && hz != ms2_hz;
+    if (!new_type && !new_hz) {
         return;
     }
-    cfg_save(type);
-    ecu_type = type;
-    printf("ecu type saved\n");
-    ecu_open();
-    last_try = now_ms() - RETRY_MS;
+    if (new_hz) {
+        ms2_hz = hz;
+    }
+    if (new_type) {
+        ecu_type = type;
+    }
+    cfg_save(ecu_type, ms2_hz);
+    printf("ecu config saved: type %u, %u hz\n", ecu_type, ms2_hz);
+    if (new_type) {
+        ecu_open();
+        last_try = now_ms() - RETRY_MS;
+    }
 }
 
 static void handle_cmd(void) {
     uint8_t type = cmd_type;
     uint8_t len = cmd_len;
     cmd_pending = false;
-    if (type == LINK_C_ECU && len == 1) {
-        do_ecu(cmd[0]);
+    if (type == LINK_C_ECU && (len == 1 || len == LINK_ECU_LEN)) {
+        do_ecu(cmd[0], len == LINK_ECU_LEN ? cmd[1] : 0u);
         return;
     }
     if (type == LINK_C_LOG && len == 1) {
@@ -741,7 +760,7 @@ int main(void) {
             errors = 0;
         }
 
-        uint32_t poll_ms = ecu_type == LINK_ECU_MS1 ? MS1_POLL_MS : MS2_POLL_MS;
+        uint32_t poll_ms = ecu_type == LINK_ECU_MS1 ? MS1_POLL_MS : 1000u / ms2_hz;
         if (ecu_ok && now - last_poll >= poll_ms) {
             last_poll = now;
             if (poll_rt(&rt)) {
