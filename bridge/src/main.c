@@ -2,13 +2,13 @@
 #include <string.h>
 
 #include "hardware/flash.h"
+#include "pico/flash.h"
 #include "hardware/i2c.h"
 #include "hardware/sync.h"
 #include "hardware/uart.h"
 #include "pico/stdlib.h"
 
 #include "datalog.h"
-#include "ff.h"
 
 #include "link.h"
 #include "ms1.h"
@@ -42,7 +42,7 @@
 #define RETRY_MS 1000
 #define ECU_QUIET_MS 3000
 #define CLOCK_PRINT_S 10
-#define SD_PROBE_S 5
+#define FLASH_WAIT_MS 500
 #define MS1_TIMEOUT_US 400000
 #define MS1_GAP_US 5000
 #define MS2_TIMEOUT_US 100000
@@ -110,6 +110,11 @@ static uint8_t cfg_load(void) {
     return c[2] == LINK_ECU_MS1 || c[2] == LINK_ECU_MS2 ? c[2] : LINK_ECU_NONE;
 }
 
+static void cfg_write(void *page) {
+    flash_range_erase(CFG_OFFSET, FLASH_SECTOR_SIZE);
+    flash_range_program(CFG_OFFSET, page, FLASH_PAGE_SIZE);
+}
+
 static void cfg_save(uint8_t type, uint8_t hz) {
     uint8_t page[FLASH_PAGE_SIZE];
     memset(page, 0xff, sizeof page);
@@ -119,10 +124,9 @@ static void cfg_save(uint8_t type, uint8_t hz) {
     page[3] = (uint8_t)~type;
     page[4] = hz;
     page[5] = (uint8_t)~hz;
-    uint32_t irq = save_and_disable_interrupts();
-    flash_range_erase(CFG_OFFSET, FLASH_SECTOR_SIZE);
-    flash_range_program(CFG_OFFSET, page, sizeof page);
-    restore_interrupts(irq);
+    if (flash_safe_execute(cfg_write, page, FLASH_WAIT_MS) != PICO_OK) {
+        printf("error: config not saved\n");
+    }
 }
 
 static void ecu_open(void) {
@@ -174,11 +178,6 @@ static void gb_pump(void) {
     }
 }
 
-void sd_idle(void);
-
-void sd_idle(void) {
-    gb_pump();
-}
 
 static void gb_send(uint8_t type, const uint8_t *payload, uint8_t len) {
     uint8_t fr[LINK_FRAME_MAX];
@@ -212,18 +211,12 @@ static void rtc_poll(void) {
     uint8_t st;
     if (!rtc_read(0, regs, sizeof regs) || !rtc_read(RTC_REG_STATUS, &st, 1)) {
         clk_state = LINK_CLK_NONE;
-        return;
+    } else {
+        clk_state = (st & RTC_OSF) || !rtc_decode(regs, &clk) ? LINK_CLK_UNSET : LINK_CLK_OK;
     }
-    clk_state = (st & RTC_OSF) || !rtc_decode(regs, &clk) ? LINK_CLK_UNSET : LINK_CLK_OK;
+    log_clock(&clk, clk_state == LINK_CLK_OK);
 }
 
-DWORD get_fattime(void) {
-    if (clk_state != LINK_CLK_OK) {
-        return (DWORD)(FF_NORTC_YEAR - 1980) << 25 | (DWORD)FF_NORTC_MON << 21 | (DWORD)FF_NORTC_MDAY << 16;
-    }
-    return (DWORD)(clk.yy + 20u) << 25 | (DWORD)clk.mo << 21 | (DWORD)clk.dd << 16 | (DWORD)clk.hh << 11 |
-           (DWORD)clk.mi << 5 | (DWORD)(clk.ss / 2u);
-}
 
 static void print_clock(void) {
     if (clk_state == LINK_CLK_OK) {
@@ -744,6 +737,7 @@ int main(void) {
     gpio_set_dir(ECU_TX_PIN, GPIO_OUT);
     gpio_put(ECU_TX_PIN, 1);
     stdio_init_all();
+    log_init();
     gb_init();
     rtc_init();
     ecu_type = cfg_load();
@@ -752,8 +746,6 @@ int main(void) {
     }
     ecu_open();
     uint8_t clock_s = 0;
-    uint8_t probe_s = 0;
-    log_probe();
 
     while (true) {
         uint32_t now = now_ms();
@@ -798,11 +790,6 @@ int main(void) {
             if (++clock_s >= CLOCK_PRINT_S) {
                 clock_s = 0;
                 print_clock();
-            }
-            log_second(now);
-            if (!log_active() && ++probe_s >= SD_PROBE_S) {
-                probe_s = 0;
-                log_probe();
             }
             send_status();
             send_time();

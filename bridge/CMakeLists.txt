@@ -35,7 +35,7 @@ add_executable(bridge src/main.c src/datalog.c src/sdspi.c ${FATFS}/ff.c ${FATFS
 target_include_directories(bridge PRIVATE ${COMMON} ${FATFS})
 target_compile_options(bridge PRIVATE -include ${CMAKE_CURRENT_LIST_DIR}/src/fatfs/ffconf.h)
 target_compile_options(bridge PRIVATE -Wall -Wextra -Werror)
-target_link_libraries(bridge pico_stdlib hardware_uart hardware_flash hardware_sync hardware_i2c hardware_spi)
+target_link_libraries(bridge pico_stdlib hardware_uart hardware_flash hardware_sync hardware_i2c hardware_spi pico_multicore pico_flash)
 pico_enable_stdio_usb(bridge 1)
 pico_enable_stdio_uart(bridge 0)
 pico_add_extra_outputs(bridge)
