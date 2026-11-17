@@ -121,7 +121,7 @@ void sound_alarm(uint8_t on) {
 static void voice_start(uint8_t i) {
     const melody_note_t *n = &melody_voices[i].notes[voices[i].note];
     voices[i].left = n->frames;
-    voice_out(i, n->f);
+    voice_out(i, melody_pitch[n->p]);
 }
 
 void sound_music(uint8_t on) {

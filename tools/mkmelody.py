@@ -200,9 +200,12 @@ def main() -> int:
         print(f"{args.wav}: {secs:.1f} s", file=sys.stderr)
         return 0
 
+    pitches = sorted({r for v in voices for r, _ in v})
+    index = {r: i for i, r in enumerate(pitches)}
     parts = ['#include "melody.h"\n']
+    parts.append(f"const uint16_t melody_pitch[] = {{{', '.join(f'{r}u' for r in pitches)}}};\n")
     for i, v in enumerate(voices):
-        rows = [", ".join(f"{{{r}u, {f}u}}" for r, f in v[k : k + 6]) for k in range(0, len(v), 6)]
+        rows = [", ".join(f"{{{index[r]}u, {f}u}}" for r, f in v[k : k + 8]) for k in range(0, len(v), 8)]
         body = ",\n    ".join(rows)
         parts.append(f"static const melody_note_t v{i}[] = {{\n    {body},\n}};\n")
     entries = ", ".join(f"{{v{i}, {len(v)}u}}" for i, v in enumerate(voices))
