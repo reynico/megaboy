@@ -36,4 +36,4 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           gh release create "$TAG" dist/megaboy.gbc dist/bridge.uf2 dist/SHA256SUMS \
-            --verify-tag --title "$TAG" --notes "GBC ROM and Pico firmware for $TAG. Check the files with SHA256SUMS."
+            --verify-tag --title "$TAG" --notes "GBC ROM and Pico firmware for $TAG."
