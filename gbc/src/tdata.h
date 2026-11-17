@@ -25,6 +25,7 @@ typedef struct {
     uint8_t burned;
     uint8_t changed;
     uint8_t unsure;
+    uint8_t flash_unsure;
     uint8_t loaded;
 } tdata_t;
 

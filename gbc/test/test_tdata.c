@@ -291,6 +291,24 @@ static void test_failed_readback(void) {
     CHECK(!td.unsure && td.blob[5] == o + 1 && td.orig[5] == o && td_dirty());
 }
 
+static void test_lost_burn(void) {
+    setup(TUNE_ECU_MS1, TUNE_VE1, 40);
+    int16_t o = ram[5];
+    td_set(5, (int16_t)(o + 1));
+    run(10);
+    drop_acks = 1;
+    td_burn();
+    run(200);
+    CHECK(flash[5] == o + 1 && td.flash_unsure && td.err == TUNE_E_ECU);
+    drop_acks = 0;
+    td_resync();
+    run(2);
+    CHECK(td.flash_unsure && td_dirty());
+    td_discard();
+    run(30);
+    CHECK(ram[5] == o && flash[5] == o && !td.flash_unsure && !td_dirty());
+}
+
 static void test_no_table(void) {
     td_load(0, TUNE_VE1);
     CHECK(td.state == TD_ERROR && td.err == TUNE_E_TABLE);
@@ -318,6 +336,7 @@ int main(void) {
     test_burn_while_writing();
     test_lost_ack();
     test_failed_readback();
+    test_lost_burn();
     test_no_table();
     test_timeout();
     if (fails) {

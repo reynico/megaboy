@@ -47,6 +47,7 @@ void td_load(uint8_t ecu, uint8_t id) {
     td.burned = 0;
     td.changed = 1;
     td.unsure = 0;
+    td.flash_unsure = 0;
     td.loaded = 0;
     keep_orig = 0;
     burn_req = 0;
@@ -80,19 +81,19 @@ uint8_t td_busy(void) {
     return pend_cmd != NO_CMD || td.tgt_cell != TD_NO_CELL || burn_req;
 }
 
-uint8_t td_dirty(void) {
+static uint8_t changed_cells(void) {
     uint16_t i;
-    uint16_t n;
-    if (td.state != TD_READY) {
-        return 0;
-    }
-    n = tune_cells(td.t);
+    uint16_t n = tune_cells(td.t);
     for (i = 0; i < n; i++) {
         if (td.blob[i] != td.orig[i]) {
             return 1;
         }
     }
     return 0;
+}
+
+uint8_t td_dirty(void) {
+    return td.state == TD_READY && (td.flash_unsure || changed_cells());
 }
 
 int16_t td_value(uint16_t cell) {
@@ -142,6 +143,7 @@ void td_discard(void) {
     if (td.state == TD_READY) {
         td.discarding = 1;
         td.changed = 1;
+        burn_req = td.flash_unsure;
         disc_from = 0;
         disc_tries = 0;
     }
@@ -227,12 +229,16 @@ void td_on_ack(const uint8_t *p) {
     }
     if (c == LINK_C_BURN) {
         if (st != TUNE_OK) {
+            if (st == TUNE_E_ECU) {
+                td.flash_unsure = 1;
+            }
             td.err = st;
             return;
         }
         for (i = 0; i < tune_cells(td.t); i++) {
             td.orig[i] = td.blob[i];
         }
+        td.flash_unsure = 0;
         td.burned = 1;
     }
 }
@@ -290,8 +296,10 @@ void td_tick(void) {
             return;
         }
         if (pend_tries > MAX_RETRIES) {
-            if (pend_cmd != LINK_C_READ) {
+            if (pend_cmd == LINK_C_WRITE) {
                 td.unsure = 1;
+            } else if (pend_cmd == LINK_C_BURN) {
+                td.flash_unsure = 1;
             }
             pend_cmd = NO_CMD;
             burn_req = 0;
