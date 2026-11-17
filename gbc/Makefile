@@ -1,5 +1,6 @@
 GBDK_HOME ?= $(HOME)/opt/gbdk
 LCC := $(GBDK_HOME)/bin/lcc
+SAN ?= undefined
 ROM := build/megaboy.gbc
 SRC := $(wildcard src/*.c) ../common/link.c ../common/rtc.c ../common/tune.c
 
@@ -19,9 +20,9 @@ $(ROM): $(SRC) src/font.c src/gauge_gfx.c $(wildcard src/*.h) ../common/link.h .
 
 test: src/font.c
 	@mkdir -p build
-	cc -std=c11 -Wall -Wextra -Werror -fsanitize=undefined -Isrc src/fmt.c src/sim.c test/test_logic.c -o build/test_logic
+	cc -std=c11 -Wall -Wextra -Werror -fsanitize=$(SAN) -Isrc src/fmt.c src/sim.c test/test_logic.c -o build/test_logic
 	./build/test_logic
-	cc -std=c11 -Wall -Wextra -Werror -fsanitize=undefined -Isrc -I../common src/tdata.c ../common/link.c ../common/rtc.c ../common/tune.c test/test_tdata.c -o build/test_tdata
+	cc -std=c11 -Wall -Wextra -Werror -fsanitize=$(SAN) -Isrc -I../common src/tdata.c ../common/link.c ../common/rtc.c ../common/tune.c test/test_tdata.c -o build/test_tdata
 	./build/test_tdata
 
 clean:

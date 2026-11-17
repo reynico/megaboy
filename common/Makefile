@@ -1,4 +1,5 @@
-CFLAGS := -std=c11 -Wall -Wextra -Werror -fsanitize=undefined -I.
+SAN ?= undefined
+CFLAGS := -std=c11 -Wall -Wextra -Werror -fsanitize=$(SAN) -I.
 
 .PHONY: test clean
 
