@@ -112,12 +112,15 @@ static void test_bad_len(void) {
 
 static void test_vacuum(void) {
     uint8_t d[MS2_RT_LEN] = {0};
+    d[0] = 0x12;
+    d[1] = 0x34;
     d[16] = 1013 >> 8;
     d[17] = 1013 & 0xff;
     d[18] = 350 >> 8;
     d[19] = 350 & 0xff;
     ecu_rt_t rt;
     CHECK(ms2_decode_rt(d, sizeof d, &rt));
+    CHECK(rt.secs == 0x1234);
     CHECK(rt.boost_psi_x10 == -96);
     CHECK(rt.clt_c_x10 == -178);
 }

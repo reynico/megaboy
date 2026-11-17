@@ -108,6 +108,7 @@ bool ms2_decode_rt(const uint8_t *data, size_t len, ecu_rt_t *rt) {
     if (len < MS2_RT_LEN) {
         return false;
     }
+    rt->secs = get16(data);
     rt->rpm = get16(data + 6);
     rt->adv_x10 = (int16_t)get16(data + 8);
     rt->engine = data[11];

@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 typedef struct {
+    uint16_t secs;
     uint16_t rpm;
     uint8_t engine;
     int16_t adv_x10;
@@ -18,3 +19,4 @@ typedef struct {
 
 int16_t ecu_boost_psi_x10(int16_t map_x10, int16_t baro_x10);
 int16_t ecu_f_to_c_x10(int32_t f_x10);
+uint8_t ecu_restarted(uint16_t prev, uint16_t now, uint32_t span);

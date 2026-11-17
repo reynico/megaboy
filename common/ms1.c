@@ -69,6 +69,7 @@ bool ms1_decode_rt(const uint8_t *data, size_t len, const ms1_cfg_t *cfg, ecu_rt
     if (len < MS1_RT_LEN) {
         return false;
     }
+    rt->secs = data[0];
     rt->rpm = ms1_rpm(data, cfg);
     rt->engine = data[2];
     rt->adv_x10 = (int16_t)(((int32_t)data[24] * 352 + 50) / 100 - 100);

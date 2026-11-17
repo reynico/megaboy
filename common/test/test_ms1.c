@@ -72,6 +72,7 @@ static void test_rpm(void) {
 
 static void test_decode(void) {
     uint8_t d[MS1_RT_LEN] = {0};
+    d[0] = 77;
     d[2] = 1;
     d[3] = 100;
     d[4] = 150;
@@ -87,6 +88,7 @@ static void test_decode(void) {
     CHECK(!ms1_decode_rt(d, MS1_RT_LEN - 1, &cfg4250, &rt));
     CHECK(ms1_decode_rt(d, sizeof d, &cfg4250, &rt));
     CHECK(rt.rpm == 3500);
+    CHECK(rt.secs == 77);
     CHECK(rt.engine == 1);
     CHECK(rt.adv_x10 == 101);
     CHECK(rt.baro_x10 == 1060);
@@ -99,6 +101,18 @@ static void test_decode(void) {
     CHECK(rt.map_x10 > rt.baro_x10);
 }
 
+static void test_restart(void) {
+    CHECK(!ecu_restarted(10, 10, 256));
+    CHECK(!ecu_restarted(10, 11, 256));
+    CHECK(!ecu_restarted(255, 0, 256));
+    CHECK(!ecu_restarted(254, 3, 256));
+    CHECK(ecu_restarted(100, 2, 256));
+    CHECK(ecu_restarted(10, 9, 256));
+    CHECK(!ecu_restarted(65535, 0, 65536));
+    CHECK(ecu_restarted(3000, 1, 65536));
+    CHECK(!ecu_restarted(3000, 3001, 65536));
+}
+
 static void test_cold(void) {
     uint8_t d[MS1_RT_LEN] = {0};
     d[6] = 254;
@@ -108,6 +122,7 @@ static void test_cold(void) {
 }
 
 int main(void) {
+    test_restart();
     test_sig();
     test_config();
     test_linear_map();
