@@ -99,6 +99,9 @@ static void reset(void) {
     pend_head = 0;
     want = 0;
     dropped = 0;
+    sent_seq = 0;
+    done_seq = 0;
+    sent_kind = IT_STOP;
     state = LINK_LOG_NOCARD;
     mounted = 0;
     if (item_q.buf) {
@@ -197,9 +200,25 @@ static void test_sync_under_load(void) {
 
 static void fill_queue(void) {
     for (int i = 0; i < ITEM_Q; i++) {
-        item_t it = {IT_ROW, 0, 0, {{0}}};
+        item_t it = {.kind = IT_ROW};
         queue_try_add(&item_q, &it);
     }
+}
+
+static void test_retry_after_failed_start(void) {
+    reset();
+    card = 0;
+    drain();
+    log_start("sig", 0, 1000);
+    drain();
+    CHECK(state == LINK_LOG_NOCARD && nfiles == 0);
+    card = 1;
+    stub_now_ms += PROBE_MS;
+    drain();
+    CHECK(state == LINK_LOG_IDLE);
+    log_start("sig", 0, stub_now_ms);
+    drain();
+    CHECK(state == LINK_LOG_REC && nfiles == 1 && open_file == 0);
 }
 
 static void test_redundant_commands(void) {
@@ -244,6 +263,7 @@ int main(void) {
     test_order_across_sessions();
     test_stop_with_full_queue();
     test_sync_under_load();
+    test_retry_after_failed_start();
     test_redundant_commands();
     test_stop_always_accepted();
     if (fails) {

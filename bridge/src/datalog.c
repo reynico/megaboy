@@ -25,6 +25,7 @@ typedef struct {
     uint8_t kind;
     uint8_t have_t;
     uint32_t ms;
+    uint32_t seq;
     union {
         ecu_rt_t rt;
         struct {
@@ -44,6 +45,9 @@ static rtc_time_t clk;
 static uint8_t clk_ok;
 static uint8_t want;
 static uint32_t dropped;
+static uint32_t sent_seq;
+static uint8_t sent_kind = IT_STOP;
+static uint32_t done_seq;
 
 static FATFS fs;
 static FIL fil;
@@ -259,6 +263,11 @@ static uint8_t worker_step(void) {
             w_stop();
             cmd = 1;
         }
+        if (it.kind != IT_ROW) {
+            critical_section_enter_blocking(&cs);
+            done_seq = it.seq;
+            critical_section_exit(&cs);
+        }
     }
     now = to_ms_since_boot(get_absolute_time());
     if (now - last_sec >= SYNC_MS) {
@@ -296,14 +305,39 @@ void log_init(void) {
 }
 
 void log_poll(void) {
-    while (pend_n && queue_try_add(&item_q, &pend[pend_head])) {
+    while (pend_n) {
+        pend[pend_head].seq = sent_seq + 1u;
+        if (!queue_try_add(&item_q, &pend[pend_head])) {
+            break;
+        }
+        sent_seq++;
+        sent_kind = pend[pend_head].kind;
         pend_head = (uint8_t)((pend_head + 1u) % PEND_MAX);
         pend_n--;
     }
 }
 
+uint8_t log_active(void) {
+    uint8_t rec;
+    critical_section_enter_blocking(&cs);
+    rec = pub.state == LINK_LOG_REC;
+    critical_section_exit(&cs);
+    return rec;
+}
+
 static uint8_t push_cmd(const item_t *it) {
-    uint8_t last = pend_n ? pend[(pend_head + pend_n - 1u) % PEND_MAX].kind : (want ? IT_START : IT_STOP);
+    uint32_t done;
+    uint8_t last;
+    critical_section_enter_blocking(&cs);
+    done = done_seq;
+    critical_section_exit(&cs);
+    if (pend_n) {
+        last = pend[(pend_head + pend_n - 1u) % PEND_MAX].kind;
+    } else if (done != sent_seq) {
+        last = sent_kind;
+    } else {
+        last = log_active() ? IT_START : IT_STOP;
+    }
     if (it->kind == last) {
         return 1;
     }
@@ -322,7 +356,7 @@ static uint8_t push_cmd(const item_t *it) {
 }
 
 void log_start(const char *sig, const rtc_time_t *t, uint32_t now_ms) {
-    item_t it = {IT_START, t != 0, now_ms, {{0}}};
+    item_t it = {.kind = IT_START, .have_t = t != 0, .ms = now_ms};
     if (t) {
         it.u.start.t = *t;
     }
@@ -333,14 +367,14 @@ void log_start(const char *sig, const rtc_time_t *t, uint32_t now_ms) {
 }
 
 void log_stop(void) {
-    item_t it = {IT_STOP, 0, 0, {{0}}};
+    item_t it = {.kind = IT_STOP};
     if (push_cmd(&it)) {
         want = 0;
     }
 }
 
 void log_row(const ecu_rt_t *r, uint32_t now_ms) {
-    item_t it = {IT_ROW, 0, now_ms, {{0}}};
+    item_t it = {.kind = IT_ROW, .ms = now_ms};
     if (!want) {
         return;
     }
@@ -381,10 +415,3 @@ void log_status(link_log_t *out) {
     critical_section_exit(&cs);
 }
 
-uint8_t log_active(void) {
-    uint8_t rec;
-    critical_section_enter_blocking(&cs);
-    rec = pub.state == LINK_LOG_REC;
-    critical_section_exit(&cs);
-    return rec;
-}
