@@ -147,13 +147,18 @@ static void test_order(void) {
     CHECK(tune_check_order(l1, v1, 1, 65) == TUNE_OK);
     CHECK(tune_check_order(l1, v1, 2, 71) == TUNE_E_ORDER);
     CHECK(tune_check_order(l1, v1, 3, 71) == TUNE_E_ORDER);
-    CHECK(tune_check_order(l2, v2, 1, 4500) == TUNE_OK);
-    CHECK(tune_check_order(l2, v2, 1, 4600) == TUNE_E_ORDER);
-    CHECK(tune_check_order(l2, v2, 2, 3900) == TUNE_E_ORDER);
+    CHECK(tune_check_order(l2, v2, 1, 6900) == TUNE_OK);
+    CHECK(tune_check_order(l2, v2, 1, 7100) == TUNE_E_ORDER);
+    CHECK(tune_check_order(l2, v2, 2, 3900) == TUNE_OK);
     CHECK(tune_check_order(l2, v2, 3, 7100) == TUNE_E_ORDER);
     CHECK(tune_check_order(l2, v2, 0, 6700) == TUNE_E_ORDER);
     CHECK(tune_check_order(l2, v2, 0, 6800) == TUNE_OK);
     CHECK(tune_check_order(ve, v1, 0, 250) == TUNE_OK);
+    const int16_t saved[4] = {7500, 4500, 3000, 4800};
+    for (uint16_t i = 0; i < 4; i++) {
+        CHECK(tune_check_order(l2, saved, i, (int16_t)(saved[i] + (i == 0 ? 100 : -100))) == TUNE_OK);
+    }
+    CHECK(tune_check_order(l2, saved, 2, 3100) == TUNE_OK);
 }
 
 int main(void) {

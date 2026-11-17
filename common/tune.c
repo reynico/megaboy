@@ -3,7 +3,7 @@
 static const tune_item_t ms1_limits[] = {{0x00u, 2u}, {0x00u, 6u}, {0x00u, 20u}, {0x00u, 128u}};
 static const tune_item_t ms2_limits[] = {{0x04u, 656u}, {0x0au, 678u}, {0x0au, 685u}, {0x0au, 691u}};
 static const tune_order_t ms1_order[] = {{0u, 1u}, {2u, 1u}, {3u, 1u}};
-static const tune_order_t ms2_order[] = {{1u, 0u}, {3u, 0u}, {1u, 2u}};
+static const tune_order_t ms2_order[] = {{1u, 0u}, {3u, 0u}};
 
 static const tune_table_t ms1_tables[TUNE_COUNT] = {
     {0x01u, 12u, 12u, TUNE_U08, TUNE_U08, TUNE_U08, 0u, 158u, 170u, 10, 250, 10, 1, TUNE_F_INT, TUNE_A_X100,
@@ -28,7 +28,7 @@ static const tune_table_t ms2_tables[TUNE_COUNT] = {
     {0x04u, 12u, 12u, TUNE_U08, TUNE_U16, TUNE_S16, 48u, 374u, 422u, 90, 200, 10, 1, TUNE_F_X10, TUNE_A_RAW,
      TUNE_A_DIV10, 0u, 0, 0, 0u},
     {0x04u, 4u, 1u, TUNE_S16, TUNE_S16, TUNE_S16, 0u, 0u, 0u, 2000, 9000, 1000, 100, TUNE_F_INT, TUNE_A_RAW,
-     TUNE_A_RAW, 0u, ms2_limits, ms2_order, 3u},
+     TUNE_A_RAW, 0u, ms2_limits, ms2_order, 2u},
     {0x05u, 8u, 8u, TUNE_S16, TUNE_U16, TUNE_S16, 76u, 220u, 204u, 900, 2500, 100, 10, TUNE_F_X10, TUNE_A_RAW,
      TUNE_A_DIV10, 1u, 0, 0, 0u},
     {0x05u, 8u, 8u, TUNE_U08, TUNE_U16, TUNE_S16, 236u, 316u, 300u, 0, 100, 10, 1, TUNE_F_INT, TUNE_A_RAW,
