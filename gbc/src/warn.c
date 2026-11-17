@@ -31,24 +31,24 @@ void warn_enter(void) {
     ui_big(3, 2, "WARNING", 7, PAL_WARN);
     switch (shown) {
     case W_CLT:
-        ui_text(4, 6, "COOLANT TEMP", PAL_WARN_DIM);
+        ui_text(4, 6, "COOLANT TEMP", PAL_WARN);
         fmt_int(s, 4, app.set.clt_warn_c, 'C');
         ui_text(1, 13, "LIFT AND COOL DOWN", PAL_WARN);
         break;
     case W_LEAN:
-        ui_text(2, 6, "LEAN UNDER BOOST", PAL_WARN_DIM);
+        ui_text(2, 6, "LEAN UNDER BOOST", PAL_WARN);
         fmt_x10(s, 4, app.set.afr_lean_x10, 0);
         ui_text(6, 13, "LIFT OFF", PAL_WARN);
         break;
     default:
-        ui_text(5, 6, "OVERBOOST", PAL_WARN_DIM);
+        ui_text(5, 6, "OVERBOOST", PAL_WARN);
         fmt_x10(s, 4, app.set.boost_warn_x10, 0);
         ui_text(6, 13, "LIFT OFF", PAL_WARN);
         break;
     }
-    ui_text(4, 11, "LIMIT", PAL_WARN_DIM);
-    ui_textn(10, 11, s, 4, PAL_WARN_DIM);
-    ui_text(7, 15, "A:ACK", PAL_WARN_DIM);
+    ui_text(4, 11, "LIMIT", PAL_WARN);
+    ui_textn(10, 11, s, 4, PAL_WARN);
+    ui_text(7, 15, "A:ACK", PAL_WARN);
     sound_alarm(app.set.alarm_snd != 0);
 }
 

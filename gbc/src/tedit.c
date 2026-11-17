@@ -143,7 +143,7 @@ static uint8_t cell_pal(uint8_t r, uint8_t c) {
         return emode == M_EDIT ? PAL_RED : PAL_AMBER;
     }
     if (r == live_r && c == live_c) {
-        return PAL_GREEN;
+        return PAL_LIVE;
     }
     return (c & 1u) ? PAL_BLUE : PAL_TEXT;
 }

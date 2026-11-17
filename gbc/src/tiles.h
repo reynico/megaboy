@@ -17,7 +17,7 @@
 #define PAL_RED 4u
 #define PAL_BLUE 5u
 #define PAL_WARN 6u
-#define PAL_WARN_DIM 7u
+#define PAL_LIVE 7u
 #define PAL_COUNT 8u
 
 #define CH_UP '^'
