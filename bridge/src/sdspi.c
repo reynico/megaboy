@@ -36,6 +36,9 @@ static volatile DSTATUS status = STA_NOINIT;
 static bool block_addr;
 static uint32_t ready_ms = BUSY_TIMEOUT_MS;
 
+__attribute__((weak)) void sd_idle(void) {
+}
+
 static uint8_t xfer(uint8_t b) {
     uint8_t r;
     spi_write_read_blocking(SD_SPI, &b, &r, 1);
@@ -48,6 +51,7 @@ static bool wait_ready(uint32_t ms) {
         if (xfer(0xff) == 0xff) {
             return true;
         }
+        sd_idle();
     } while (!time_reached(end));
     return false;
 }
@@ -105,6 +109,9 @@ static bool read_block(uint8_t *buf) {
     uint8_t t;
     do {
         t = xfer(0xff);
+        if (t == 0xff) {
+            sd_idle();
+        }
     } while (t == 0xff && !time_reached(end));
     if (t != TOKEN_DATA) {
         return false;

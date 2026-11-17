@@ -157,6 +157,12 @@ static void gb_pump(void) {
     }
 }
 
+void sd_idle(void);
+
+void sd_idle(void) {
+    gb_pump();
+}
+
 static void gb_send(uint8_t type, const uint8_t *payload, uint8_t len) {
     uint8_t fr[LINK_FRAME_MAX];
     uint8_t n = link_encode(fr, type, payload, len);
