@@ -338,8 +338,11 @@ void loop() {
                 last_print = now;
                 print_rt(&rt);
             }
-        } else if (++errors >= MAX_ERRORS) {
-            ecu_ok = false;
+        } else {
+            page_cached = NO_PAGE;
+            if (++errors >= MAX_ERRORS) {
+                ecu_ok = false;
+            }
         }
     }
 
