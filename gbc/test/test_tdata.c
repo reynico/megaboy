@@ -25,6 +25,7 @@ static int bridge_on = 1;
 static int writes;
 static int verifies;
 static int burns;
+static int drop_acks;
 
 uint8_t linkrx_send(uint8_t type, const uint8_t *payload, uint8_t len) {
     last_type = type;
@@ -36,6 +37,9 @@ uint8_t linkrx_send(uint8_t type, const uint8_t *payload, uint8_t len) {
 
 static void ack(uint8_t c, uint8_t id, uint8_t cell, uint8_t st, int16_t v) {
     uint8_t p[LINK_ACK_LEN] = {c, id, cell, st};
+    if (drop_acks && c != LINK_C_READ) {
+        return;
+    }
     link_put_s16(p + 4, v);
     td_on_ack(p);
 }
@@ -96,6 +100,7 @@ static void setup(uint8_t e, uint8_t id, int16_t base) {
     memcpy(flash, ram, sizeof ram);
     ecu = e;
     bridge_on = 1;
+    drop_acks = 0;
     writes = 0;
     verifies = 0;
     burns = 0;
@@ -223,6 +228,48 @@ static void test_limits(void) {
     CHECK(td.tgt_val == 10);
 }
 
+static void test_table_bounds(void) {
+    setup(TUNE_ECU_MS1, TUNE_VE1, 40);
+    td_load(TUNE_ECU_MS1, TUNE_VE1);
+    int16_t before = td.blob[0];
+    uint8_t p[LINK_TABLE_HDR + 2] = {TUNE_VE1, 0xff, 0xff, 0x34, 0x12};
+    td_on_table(p, sizeof p);
+    CHECK(td.blob[0] == before);
+    uint8_t q[LINK_TABLE_HDR + 4] = {TUNE_VE1, 167, 0, 1, 0, 2, 0};
+    td_on_table(q, sizeof q);
+    CHECK(td.blob[167] == ram[167]);
+    run(2);
+}
+
+static void test_burn_while_writing(void) {
+    setup(TUNE_ECU_MS1, TUNE_VE1, 40);
+    int16_t want = (int16_t)(ram[5] + 25);
+    CHECK(td_set(5, want));
+    td_burn();
+    CHECK(td_busy());
+    run(20);
+    CHECK(ram[5] == want && burns == 1 && flash[5] == want && !td_busy() && td.burned);
+}
+
+static void test_lost_ack(void) {
+    setup(TUNE_ECU_MS1, TUNE_VE1, 40);
+    int16_t o = ram[5];
+    drop_acks = 1;
+    CHECK(td_set(5, (int16_t)(o + 1)));
+    run(200);
+    CHECK(ram[5] == o + 1 && td.err == TUNE_E_ECU && td.unsure && !td_busy());
+    CHECK(!td_set(6, 50));
+    td_burn();
+    CHECK(!td_busy());
+    drop_acks = 0;
+    td_resync();
+    run(2);
+    CHECK(td.state == TD_READY && !td.unsure && td.blob[5] == o + 1 && td.orig[5] == o && td_dirty());
+    td_discard();
+    run(20);
+    CHECK(ram[5] == o && !td_dirty() && burns == 0);
+}
+
 static void test_no_table(void) {
     td_load(0, TUNE_VE1);
     CHECK(td.state == TD_ERROR && td.err == TUNE_E_TABLE);
@@ -246,6 +293,9 @@ int main(void) {
     test_limits();
     test_order();
     test_discard_order();
+    test_table_bounds();
+    test_burn_while_writing();
+    test_lost_ack();
     test_no_table();
     test_timeout();
     if (fails) {

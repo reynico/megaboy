@@ -302,7 +302,7 @@ static void draw_status(void) {
     } else if (emode == M_LEAVE) {
         line(KEYS_Y, "WAIT", PAL_DIM);
     } else {
-        line(KEYS_Y, "A:EDIT  B:BACK", PAL_DIM);
+        line(KEYS_Y, td.unsure ? "A:RELOAD  B:BACK" : "A:EDIT  B:BACK", PAL_DIM);
     }
 }
 
@@ -416,7 +416,7 @@ static void edit(uint8_t pressed) {
 void tedit_input(uint8_t pressed) {
     if (td.state != TD_READY) {
         if ((pressed & J_A) && td.state == TD_ERROR) {
-            td_load(app.ecu, td.id);
+            td_resync();
         } else if (pressed & J_B) {
             screen_go(SCR_TUNE);
         }
@@ -449,7 +449,11 @@ void tedit_input(uint8_t pressed) {
     case M_LEAVE:
         break;
     default:
-        if ((pressed & J_A) && !td_busy()) {
+        if ((pressed & J_A) && td.unsure && !td_busy()) {
+            td_resync();
+        } else if ((pressed & J_B) && td.err == TUNE_E_ECU && !td_busy()) {
+            screen_go(SCR_TUNE);
+        } else if ((pressed & J_A) && !td_busy()) {
             emode = M_EDIT;
             edit_val = td_value(cell_at(cur_r, cur_c));
             td.err = TUNE_OK;

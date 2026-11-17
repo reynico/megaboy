@@ -12,6 +12,7 @@
 #define TD_NO_CELL 0xffffu
 
 typedef struct {
+    uint8_t ecu;
     uint8_t id;
     const tune_table_t *t;
     uint8_t state;
@@ -23,11 +24,14 @@ typedef struct {
     uint8_t discarding;
     uint8_t burned;
     uint8_t changed;
+    uint8_t unsure;
+    uint8_t loaded;
 } tdata_t;
 
 extern tdata_t td;
 
 void td_load(uint8_t ecu, uint8_t id);
+void td_resync(void);
 uint8_t td_busy(void);
 uint8_t td_dirty(void);
 int16_t td_value(uint16_t cell);
