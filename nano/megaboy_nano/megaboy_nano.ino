@@ -74,6 +74,7 @@ static void send_status(void) {
     uint8_t pl[LINK_STATUS_LEN];
     st.state = ecu_ok ? LINK_ST_OK : LINK_ST_WAIT;
     st.ecu = LINK_ECU_MS1;
+    st.hz = LINK_HZ_DEFAULT;
     gb_send(LINK_T_STATUS, pl, link_put_status(pl, &st));
 }
 
