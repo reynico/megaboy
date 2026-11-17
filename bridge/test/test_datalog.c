@@ -221,6 +221,27 @@ static void test_retry_after_failed_start(void) {
     CHECK(state == LINK_LOG_REC && nfiles == 1 && open_file == 0);
 }
 
+static void test_dedup_views(void) {
+    reset();
+    drain();
+    log_start("sig", 0, 1000);
+    CHECK(pend_n == 0 && sent_seq == 1 && done_seq == 0);
+    log_stop();
+    CHECK(sent_seq == 2 && sent_kind == IT_STOP);
+    worker_step();
+    CHECK(done_seq == 2 && pub.state == LINK_LOG_IDLE);
+    log_start("sig", 0, 1100);
+    CHECK(sent_seq == 3);
+    worker_step();
+    CHECK(done_seq == 3 && pub.state == LINK_LOG_REC);
+    log_start("sig", 0, 1200);
+    CHECK(sent_seq == 3);
+    log_stop();
+    CHECK(sent_seq == 4);
+    worker_step();
+    CHECK(done_seq == 4 && pub.state == LINK_LOG_IDLE && nfiles == 2);
+}
+
 static void test_redundant_commands(void) {
     reset();
     drain();
@@ -264,6 +285,7 @@ int main(void) {
     test_stop_with_full_queue();
     test_sync_under_load();
     test_retry_after_failed_start();
+    test_dedup_views();
     test_redundant_commands();
     test_stop_always_accepted();
     if (fails) {

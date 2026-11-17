@@ -231,7 +231,7 @@ static void w_second(uint32_t now_ms) {
     }
 }
 
-static void publish(void) {
+static void publish(uint8_t done, uint32_t seq) {
     link_log_t l = {state, num, 0, 0, 0, dated, start};
     if (state == LINK_LOG_REC) {
         uint32_t secs = (last_ms - start_ms) / 1000u;
@@ -241,6 +241,9 @@ static void publish(void) {
     }
     critical_section_enter_blocking(&cs);
     pub = l;
+    if (done) {
+        done_seq = seq;
+    }
     critical_section_exit(&cs);
 }
 
@@ -258,15 +261,11 @@ static uint8_t worker_step(void) {
             w_row(&it.u.rt, it.ms);
         } else if (it.kind == IT_START) {
             w_start(it.u.start.sig, it.have_t ? &it.u.start.t : 0, it.ms);
-            cmd = 1;
         } else {
             w_stop();
-            cmd = 1;
         }
         if (it.kind != IT_ROW) {
-            critical_section_enter_blocking(&cs);
-            done_seq = it.seq;
-            critical_section_exit(&cs);
+            publish(1, it.seq);
         }
     }
     now = to_ms_since_boot(get_absolute_time());
@@ -281,7 +280,7 @@ static uint8_t worker_step(void) {
         cmd = 1;
     }
     if (cmd) {
-        publish();
+        publish(0, 0);
     }
     return n;
 }
@@ -327,16 +326,18 @@ uint8_t log_active(void) {
 
 static uint8_t push_cmd(const item_t *it) {
     uint32_t done;
+    uint8_t rec;
     uint8_t last;
     critical_section_enter_blocking(&cs);
     done = done_seq;
+    rec = pub.state == LINK_LOG_REC;
     critical_section_exit(&cs);
     if (pend_n) {
         last = pend[(pend_head + pend_n - 1u) % PEND_MAX].kind;
     } else if (done != sent_seq) {
         last = sent_kind;
     } else {
-        last = log_active() ? IT_START : IT_STOP;
+        last = rec ? IT_START : IT_STOP;
     }
     if (it->kind == last) {
         return 1;
