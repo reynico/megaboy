@@ -78,6 +78,13 @@ static uint8_t page_cached = NO_PAGE;
 static int16_t vals[TUNE_BLOB_MAX];
 static uint8_t vals_id = NO_PAGE;
 static bool ms2_ve16;
+static bool have_secs;
+static uint16_t last_secs;
+
+static void drop_cache(void) {
+    vals_id = NO_PAGE;
+    page_cached = NO_PAGE;
+}
 static uint8_t raw[TUNE_BLOB_MAX * 2u];
 static uint8_t clk_state;
 static char sig[MS1_SIG_LEN + 1];
@@ -754,8 +761,8 @@ int main(void) {
 
         if (ecu_type != LINK_ECU_NONE && !ecu_ok && now >= ECU_QUIET_MS && now - last_try >= RETRY_MS) {
             last_try = now;
-            vals_id = NO_PAGE;
-            page_cached = NO_PAGE;
+            drop_cache();
+            have_secs = false;
             ecu_ok = ecu_type == LINK_ECU_MS1 ? ms1_connect() : ms2_connect();
             errors = 0;
         }
@@ -765,14 +772,23 @@ int main(void) {
             last_poll = now;
             if (poll_rt(&rt)) {
                 errors = 0;
+                if (have_secs && ecu_restarted(last_secs, rt.secs, ecu_type == LINK_ECU_MS1 ? 256u : 65536u)) {
+                    printf("ecu restart detected\n");
+                    drop_cache();
+                }
+                have_secs = true;
+                last_secs = rt.secs;
                 send_rt(&rt);
                 log_row(&rt, now);
                 if (now - last_print >= PRINT_MS) {
                     last_print = now;
                     print_rt(&rt);
                 }
-            } else if (++errors >= MAX_ERRORS) {
-                ecu_ok = false;
+            } else {
+                drop_cache();
+                if (++errors >= MAX_ERRORS) {
+                    ecu_ok = false;
+                }
             }
         }
 
