@@ -7,6 +7,7 @@
 #include "rtc.h"
 
 void log_init(void);
+void log_poll(void);
 void log_start(const char *sig, const rtc_time_t *t, uint32_t now_ms);
 void log_stop(void);
 void log_row(const ecu_rt_t *r, uint32_t now_ms);

@@ -11,30 +11,33 @@
 
 #define MAX_NUM 9999u
 #define ROW_MAX 96
-#define ROW_Q 64
-#define CMD_Q 4
+#define ITEM_Q 64
+#define PEND_MAX 4
+#define BATCH 8
 #define SIG_MAX 33
 #define PROBE_MS 5000u
 #define SYNC_MS 1000u
 #define IDLE_US 500u
 
-enum { OP_START, OP_STOP };
+enum { IT_ROW, IT_START, IT_STOP };
 
 typedef struct {
-    uint32_t ms;
-    ecu_rt_t rt;
-} row_t;
-
-typedef struct {
-    uint8_t op;
+    uint8_t kind;
     uint8_t have_t;
     uint32_t ms;
-    rtc_time_t t;
-    char sig[SIG_MAX];
-} cmd_t;
+    union {
+        ecu_rt_t rt;
+        struct {
+            rtc_time_t t;
+            char sig[SIG_MAX];
+        } start;
+    } u;
+} item_t;
 
-static queue_t row_q;
-static queue_t cmd_q;
+static queue_t item_q;
+static item_t pend[PEND_MAX];
+static uint8_t pend_head;
+static uint8_t pend_n;
 static critical_section_t cs;
 static link_log_t pub;
 static rtc_time_t clk;
@@ -184,40 +187,30 @@ static void w_stop(void) {
     printf("sd: stopped\n");
 }
 
-static char *x10(char *o, int16_t v) {
-    if (v < 0) {
-        *o++ = '-';
-        v = (int16_t)-v;
-    }
-    return o + sprintf(o, "%d.%d", v / 10, v % 10);
+static int x10(char *o, size_t n, int16_t v, char end) {
+    int32_t a = v < 0 ? -(int32_t)v : v;
+    return snprintf(o, n, "%s%ld.%ld%c", v < 0 ? "-" : "", (long)(a / 10), (long)(a % 10), end);
 }
 
 static void w_row(const ecu_rt_t *r, uint32_t now_ms) {
     char line[ROW_MAX];
-    char *o = line;
+    const int16_t v[] = {r->map_x10, r->tps_x10,  r->afr_x10, r->clt_c_x10,
+                         r->iat_c_x10, r->batt_x10, r->adv_x10, r->boost_psi_x10};
+    size_t used;
     uint32_t ms;
-    if (state != LINK_LOG_REC) {
+    if (state != LINK_LOG_REC || (int32_t)(now_ms - start_ms) < 0) {
         return;
     }
     ms = now_ms - start_ms;
-    o += sprintf(o, "%lu.%03lu\t%u\t", (unsigned long)(ms / 1000u), (unsigned long)(ms % 1000u), r->rpm);
-    o = x10(o, r->map_x10);
-    *o++ = '\t';
-    o = x10(o, r->tps_x10);
-    *o++ = '\t';
-    o = x10(o, r->afr_x10);
-    *o++ = '\t';
-    o = x10(o, r->clt_c_x10);
-    *o++ = '\t';
-    o = x10(o, r->iat_c_x10);
-    *o++ = '\t';
-    o = x10(o, r->batt_x10);
-    *o++ = '\t';
-    o = x10(o, r->adv_x10);
-    *o++ = '\t';
-    o = x10(o, r->boost_psi_x10);
-    *o++ = '\n';
-    if (put(line, (UINT)(o - line))) {
+    used = (size_t)snprintf(line, sizeof line, "%lu.%03lu\t%u\t", (unsigned long)(ms / 1000u),
+                            (unsigned long)(ms % 1000u), r->rpm);
+    for (size_t k = 0; k < sizeof v / sizeof v[0] && used < sizeof line; k++) {
+        used += (size_t)x10(line + used, sizeof line - used, v[k], k + 1 < sizeof v / sizeof v[0] ? '\t' : '\n');
+    }
+    if (used >= sizeof line) {
+        return;
+    }
+    if (put(line, (UINT)used)) {
         rows++;
     }
 }
@@ -247,40 +240,49 @@ static void publish(void) {
     critical_section_exit(&cs);
 }
 
+static uint32_t last_sec;
+static uint32_t last_probe;
+
+static uint8_t worker_step(void) {
+    item_t it;
+    uint8_t n = 0;
+    uint8_t cmd = 0;
+    uint32_t now;
+    while (n < BATCH && queue_try_remove(&item_q, &it)) {
+        n++;
+        if (it.kind == IT_ROW) {
+            w_row(&it.u.rt, it.ms);
+        } else if (it.kind == IT_START) {
+            w_start(it.u.start.sig, it.have_t ? &it.u.start.t : 0, it.ms);
+            cmd = 1;
+        } else {
+            w_stop();
+            cmd = 1;
+        }
+    }
+    now = to_ms_since_boot(get_absolute_time());
+    if (now - last_sec >= SYNC_MS) {
+        last_sec = now;
+        w_second(now);
+        cmd = 1;
+    }
+    if (state != LINK_LOG_REC && !mounted && now - last_probe >= PROBE_MS) {
+        last_probe = now;
+        w_probe();
+        cmd = 1;
+    }
+    if (cmd) {
+        publish();
+    }
+    return n;
+}
+
 static void core1_main(void) {
-    uint32_t last_sec = to_ms_since_boot(get_absolute_time());
-    uint32_t last_probe = last_sec - PROBE_MS;
+    last_sec = to_ms_since_boot(get_absolute_time());
+    last_probe = last_sec - PROBE_MS;
     multicore_lockout_victim_init();
     for (;;) {
-        cmd_t c;
-        row_t r;
-        uint8_t work = 0;
-        uint32_t now;
-        while (queue_try_remove(&cmd_q, &c)) {
-            if (c.op == OP_START) {
-                w_start(c.sig, c.have_t ? &c.t : 0, c.ms);
-            } else {
-                w_stop();
-            }
-            publish();
-            work = 1;
-        }
-        while (queue_try_remove(&row_q, &r)) {
-            w_row(&r.rt, r.ms);
-            work = 1;
-        }
-        now = to_ms_since_boot(get_absolute_time());
-        if (now - last_sec >= SYNC_MS) {
-            last_sec = now;
-            w_second(now);
-            publish();
-        }
-        if (state != LINK_LOG_REC && !mounted && now - last_probe >= PROBE_MS) {
-            last_probe = now;
-            w_probe();
-            publish();
-        }
-        if (!work) {
+        if (!worker_step()) {
             sleep_us(IDLE_US);
         }
     }
@@ -288,31 +290,54 @@ static void core1_main(void) {
 
 void log_init(void) {
     critical_section_init(&cs);
-    queue_init(&row_q, sizeof(row_t), ROW_Q);
-    queue_init(&cmd_q, sizeof(cmd_t), CMD_Q);
+    queue_init(&item_q, sizeof(item_t), ITEM_Q);
     pub.state = LINK_LOG_NOCARD;
     multicore_launch_core1(core1_main);
 }
 
-void log_start(const char *sig, const rtc_time_t *t, uint32_t now_ms) {
-    cmd_t c = {OP_START, t != 0, now_ms, {0}, {0}};
-    if (t) {
-        c.t = *t;
+void log_poll(void) {
+    while (pend_n && queue_try_add(&item_q, &pend[pend_head])) {
+        pend_head = (uint8_t)((pend_head + 1u) % PEND_MAX);
+        pend_n--;
     }
-    snprintf(c.sig, sizeof c.sig, "%s", sig);
-    want = 1;
-    queue_try_add(&cmd_q, &c);
+}
+
+static uint8_t push_cmd(const item_t *it) {
+    if (pend_n == PEND_MAX) {
+        printf("error: log command refused\n");
+        return 0;
+    }
+    pend[(pend_head + pend_n) % PEND_MAX] = *it;
+    pend_n++;
+    log_poll();
+    return 1;
+}
+
+void log_start(const char *sig, const rtc_time_t *t, uint32_t now_ms) {
+    item_t it = {IT_START, t != 0, now_ms, {{0}}};
+    if (t) {
+        it.u.start.t = *t;
+    }
+    snprintf(it.u.start.sig, sizeof it.u.start.sig, "%s", sig);
+    if (push_cmd(&it)) {
+        want = 1;
+    }
 }
 
 void log_stop(void) {
-    cmd_t c = {OP_STOP, 0, 0, {0}, {0}};
-    want = 0;
-    queue_try_add(&cmd_q, &c);
+    item_t it = {IT_STOP, 0, 0, {{0}}};
+    if (push_cmd(&it)) {
+        want = 0;
+    }
 }
 
 void log_row(const ecu_rt_t *r, uint32_t now_ms) {
-    row_t row = {now_ms, *r};
-    if (want && !queue_try_add(&row_q, &row)) {
+    item_t it = {IT_ROW, 0, now_ms, {{0}}};
+    if (!want) {
+        return;
+    }
+    it.u.rt = *r;
+    if (pend_n || !queue_try_add(&item_q, &it)) {
         dropped++;
     }
 }

@@ -802,6 +802,7 @@ int main(void) {
         if (cmd_pending) {
             handle_cmd();
         }
+        log_poll();
         gb_pump();
     }
 }
