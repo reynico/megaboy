@@ -22,6 +22,9 @@ env:
   ARM_SHA256: 62a63b981fe391a9cbad7ef51b17e49aeaa3e7b0d029b36ca1e9c3b2a9b78823
   PICO_SDK_COMMIT: bddd20f928ce76142793bef434d4f75f4af6e433
   PICOTOOL_COMMIT: de8ae5ac334e1126993f72a5c67949712fd1e1a4
+  # Unmodified ff15a.zip, mirrored as a release asset because elm-chan.org does not answer CI runners.
+  FATFS_RELEASE: deps-fatfs-r0.15a
+  FATFS_SHA256: 74737b1cafa1a67a3f722dd0d1a44767c5b54d37b6300ad3825a904cbe88fc3c
   ARDUINO_CLI_URL: https://github.com/arduino/arduino-cli/releases/download/v1.5.1/arduino-cli_1.5.1_Linux_64bit.tar.gz
   ARDUINO_CLI_SHA256: 28a8e119c498a25607821c36cb2dc49e8463941b261a0d99091baa7bc692dd2b
   ARDUINO_AVR: arduino:avr@1.8.6
@@ -96,9 +99,18 @@ jobs:
           cfg=$(find "$RUNNER_TEMP/picotool" -name picotoolConfig.cmake | head -n 1)
           test -n "$cfg"
           echo "PICOTOOL_CMAKE_DIR=$(dirname "$cfg")" >> "$GITHUB_ENV"
+      - name: Fetch FatFs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "$FATFS_RELEASE" --repo "$GITHUB_REPOSITORY" --pattern ff15a.zip --dir "$RUNNER_TEMP"
+          echo "$FATFS_SHA256  $RUNNER_TEMP/ff15a.zip" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/fatfs"
+          unzip -q "$RUNNER_TEMP/ff15a.zip" -d "$RUNNER_TEMP/fatfs"
       - name: Build firmware
         run: |
-          cmake -S bridge -B bridge/build -Dpicotool_DIR="$PICOTOOL_CMAKE_DIR"
+          cmake -S bridge -B bridge/build -Dpicotool_DIR="$PICOTOOL_CMAKE_DIR" \
+            -DFETCHCONTENT_SOURCE_DIR_FATFS="$RUNNER_TEMP/fatfs"
           if [ -d bridge/build/_deps/picotool-src ]; then echo "error: sdk fetched an unpinned picotool"; exit 1; fi
           cmake --build bridge/build -j
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
