@@ -23,9 +23,10 @@
 #define LINK_C_TIME 0x14u
 #define LINK_C_LOG 0x15u
 
-#define LINK_TABLE_CHUNK 28u
-#define LINK_ACK_LEN 5u
-#define LINK_WRITE_LEN 4u
+#define LINK_TABLE_HDR 3u
+#define LINK_TABLE_VALS 14u
+#define LINK_ACK_LEN 6u
+#define LINK_WRITE_LEN 5u
 #define LINK_WF_VERIFY 0x01u
 
 #define LINK_RT_LEN 20u
@@ -90,6 +91,8 @@ typedef struct {
 } link_parser_t;
 
 uint8_t link_encode(uint8_t *out, uint8_t type, const uint8_t *payload, uint8_t len);
+void link_put_s16(uint8_t *out, int16_t v);
+int16_t link_get_s16(const uint8_t *in);
 uint8_t link_put_rt(uint8_t *out, const link_rt_t *rt);
 void link_get_rt(const uint8_t *in, link_rt_t *rt);
 uint8_t link_put_status(uint8_t *out, const link_status_t *st);

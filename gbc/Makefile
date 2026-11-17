@@ -21,7 +21,7 @@ test: src/font.c
 	@mkdir -p build
 	cc -std=c11 -Wall -Wextra -Werror -fsanitize=undefined -Isrc src/fmt.c src/sim.c test/test_logic.c -o build/test_logic
 	./build/test_logic
-	cc -std=c11 -Wall -Wextra -Werror -fsanitize=undefined -Isrc -I../common src/tdata.c ../common/tune.c test/test_tdata.c -o build/test_tdata
+	cc -std=c11 -Wall -Wextra -Werror -fsanitize=undefined -Isrc -I../common src/tdata.c ../common/link.c ../common/rtc.c ../common/tune.c test/test_tdata.c -o build/test_tdata
 	./build/test_tdata
 
 clean:

@@ -17,7 +17,7 @@ static const char *const names[TUNE_COUNT] = {"VE TABLE 1", "SPARK TABLE 1", "AF
 static uint8_t sel;
 
 static uint8_t can_tune(void) {
-    return app.src == SRC_LINK && !app_ecu_missing() && app.ecu == LINK_ECU_MS1;
+    return app.src == SRC_LINK && !app_ecu_missing() && (app.ecu == LINK_ECU_MS1 || app.ecu == LINK_ECU_MS2);
 }
 
 static void draw_cursor(void) {
@@ -28,10 +28,10 @@ static void draw_cursor(void) {
 }
 
 static void draw_note(void) {
-    if (can_tune()) {
-        ui_text(1, NOTE_Y, "MS1 RAM, LIVE   ", PAL_GREEN);
+    if (!can_tune()) {
+        ui_text(1, NOTE_Y, "NEEDS ECU + LINK", PAL_RED);
     } else {
-        ui_text(1, NOTE_Y, "NEEDS MS1 + LINK", PAL_RED);
+        ui_text(1, NOTE_Y, app.ecu == LINK_ECU_MS2 ? "MS2 RAM, LIVE   " : "MS1 RAM, LIVE   ", PAL_GREEN);
     }
 }
 
@@ -61,7 +61,7 @@ void tunemenu_input(uint8_t pressed) {
         sel = (uint8_t)((sel + 1u) % TUNE_COUNT);
         draw_cursor();
     } else if ((pressed & J_A) && can_tune()) {
-        td_load(sel);
+        td_load(app.ecu, sel);
         screen_go(SCR_TEDIT);
     } else if (pressed & J_B) {
         screen_go(SCR_MENU);

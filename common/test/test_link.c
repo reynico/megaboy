@@ -99,7 +99,17 @@ static void test_log_roundtrip(void) {
     CHECK(pl[5] == 0x67 && pl[8] == 0x01);
 }
 
+static void test_s16(void) {
+    uint8_t b[2];
+    link_put_s16(b, -100);
+    CHECK(b[0] == 0x9c && b[1] == 0xff && link_get_s16(b) == -100);
+    link_put_s16(b, 9000);
+    CHECK(link_get_s16(b) == 9000);
+    CHECK(LINK_TABLE_HDR + LINK_TABLE_VALS * 2u <= LINK_MAX_PAYLOAD);
+}
+
 int main(void) {
+    test_s16();
     test_log_roundtrip();
     test_rt_roundtrip();
     test_status();

@@ -27,6 +27,14 @@ static uint16_t get16(const uint8_t *d) {
     return (uint16_t)(d[0] | (uint16_t)d[1] << 8);
 }
 
+void link_put_s16(uint8_t *out, int16_t v) {
+    put16(out, (uint16_t)v);
+}
+
+int16_t link_get_s16(const uint8_t *in) {
+    return (int16_t)get16(in);
+}
+
 uint8_t link_put_rt(uint8_t *out, const link_rt_t *rt) {
     uint8_t *o = out;
     o = put16(o, rt->rpm);

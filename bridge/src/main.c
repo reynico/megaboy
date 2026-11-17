@@ -50,6 +50,7 @@
 #define MAX_ERRORS 10
 #define BURN_WAIT_MS 200
 #define NO_PAGE 0xff
+#define MS2_READ_MAX 256u
 
 #define CFG_OFFSET (PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE)
 #define CFG_MAGIC0 'M'
@@ -71,6 +72,9 @@ static uint8_t cmd[LINK_TIME_SET_LEN];
 static bool cmd_pending;
 static uint8_t page_buf[MS1_PAGE_LEN];
 static uint8_t page_cached = NO_PAGE;
+static int16_t vals[TUNE_BLOB_MAX];
+static uint8_t vals_id = NO_PAGE;
+static uint8_t raw[TUNE_BLOB_MAX * 2u];
 static uint8_t clk_state;
 static char sig[MS1_SIG_LEN + 1];
 static rtc_time_t clk;
@@ -103,6 +107,7 @@ static void cfg_save(uint8_t type) {
 static void ecu_open(void) {
     ecu_ok = false;
     page_cached = NO_PAGE;
+    vals_id = NO_PAGE;
     if (ecu_type == LINK_ECU_NONE) {
         return;
     }
@@ -394,100 +399,232 @@ static void print_rt(const ecu_rt_t *r) {
            abs10(r->afr_x10));
 }
 
-static void send_ack(uint8_t c, uint8_t id, uint8_t cell, uint8_t st, uint8_t val) {
-    const uint8_t pl[LINK_ACK_LEN] = {c, id, cell, st, val};
+static void send_ack(uint8_t c, uint8_t id, uint8_t cell, uint8_t st, int16_t val) {
+    uint8_t pl[LINK_ACK_LEN] = {c, id, cell, st};
+    link_put_s16(pl + 4, val);
     gb_send(LINK_T_ACK, pl, LINK_ACK_LEN);
 }
 
-static bool read_page(const tune_table_t *t) {
-    const uint8_t c[] = {MS1_CMD_PAGE, t->page_cmd, MS1_CMD_READ};
+static bool ms1_read_page(uint8_t page) {
+    const uint8_t c[] = {MS1_CMD_PAGE, page, MS1_CMD_READ};
     page_cached = NO_PAGE;
     if (!ms1_cmd(c, sizeof c, page_buf, MS1_PAGE_LEN)) {
         return false;
     }
-    page_cached = t->page_cmd;
+    page_cached = page;
+    return true;
+}
+
+static bool ms2_read(uint8_t page, uint16_t off, uint16_t cnt, uint8_t *out) {
+    uint8_t req[MS2_FRAME_MAX];
+    while (cnt) {
+        uint16_t n = cnt > MS2_READ_MAX ? MS2_READ_MAX : cnt;
+        const uint8_t *d;
+        size_t l;
+        if (!ms2_transact(req, ms2_req_read(req, page, off, n), &d, &l) || l != n) {
+            return false;
+        }
+        memcpy(out, d, n);
+        out += n;
+        off = (uint16_t)(off + n);
+        cnt = (uint16_t)(cnt - n);
+    }
+    return true;
+}
+
+static bool load_elems(const tune_table_t *t, uint16_t first, uint16_t count) {
+    uint8_t page;
+    uint16_t off;
+    uint8_t type;
+    tune_loc(t, first, &page, &off, &type);
+    uint8_t sz = tune_size(type);
+    if (ecu_type == LINK_ECU_MS1) {
+        for (uint16_t i = 0; i < count; i++) {
+            tune_loc(t, (uint16_t)(first + i), &page, &off, &type);
+            if (page_cached != page && !ms1_read_page(page)) {
+                return false;
+            }
+            vals[first + i] = tune_decode(type, &page_buf[off]);
+        }
+        return true;
+    }
+    if (!ms2_read(page, off, (uint16_t)(count * sz), raw)) {
+        return false;
+    }
+    for (uint16_t i = 0; i < count; i++) {
+        vals[first + i] = tune_decode(type, &raw[i * sz]);
+    }
+    return true;
+}
+
+static bool load_table(uint8_t id, const tune_table_t *t) {
+    uint16_t n = tune_cells(t);
+    bool ok = true;
+    vals_id = NO_PAGE;
+    if (t->items || ecu_type == LINK_ECU_MS1) {
+        for (uint16_t i = 0; ok && i < tune_blob_len(t); i++) {
+            ok = load_elems(t, i, 1);
+        }
+    } else {
+        ok = load_elems(t, 0, n) && load_elems(t, n, t->cols) && load_elems(t, (uint16_t)(n + t->cols), t->rows);
+    }
+    if (ok) {
+        vals_id = id;
+    }
+    return ok;
+}
+
+static bool write_elem(const tune_table_t *t, uint16_t cell, int16_t v) {
+    uint8_t page;
+    uint16_t off;
+    uint8_t type;
+    tune_loc(t, cell, &page, &off, &type);
+    if (ecu_type == LINK_ECU_MS1) {
+        const uint8_t w[] = {MS1_CMD_PAGE, page, 'W', (uint8_t)off, (uint8_t)v};
+        uart_write_blocking(ECU_UART, w, sizeof w);
+        page_cached = NO_PAGE;
+        return true;
+    }
+    uint8_t data[2];
+    uint8_t req[MS2_FRAME_MAX];
+    const uint8_t *d;
+    size_t l;
+    tune_encode(type, v, data);
+    return ms2_transact(req, ms2_req_write(req, page, off, data, tune_size(type)), &d, &l);
+}
+
+static bool read_back(const tune_table_t *t, uint16_t cell, int16_t *v) {
+    uint8_t page;
+    uint16_t off;
+    uint8_t type;
+    tune_loc(t, cell, &page, &off, &type);
+    if (ecu_type == LINK_ECU_MS1) {
+        if (!ms1_read_page(page)) {
+            return false;
+        }
+        *v = tune_decode(type, &page_buf[off]);
+        return true;
+    }
+    if (!ms2_read(page, off, tune_size(type), raw)) {
+        return false;
+    }
+    *v = tune_decode(type, raw);
     return true;
 }
 
 static void do_read(uint8_t id) {
-    const tune_table_t *t = tune_get(id);
+    const tune_table_t *t = tune_get(ecu_type, id);
+    uint8_t pl[LINK_TABLE_HDR + LINK_TABLE_VALS * 2u];
     if (!t) {
         send_ack(LINK_C_READ, id, 0, TUNE_E_TABLE, 0);
         return;
     }
-    if (!read_page(t)) {
+    if (!load_table(id, t)) {
         send_ack(LINK_C_READ, id, 0, TUNE_E_ECU, 0);
         return;
     }
-    uint8_t len = tune_blob_len(t);
-    uint8_t pl[2 + LINK_TABLE_CHUNK];
-    for (uint8_t off = 0; off < len; off = (uint8_t)(off + LINK_TABLE_CHUNK)) {
-        uint8_t n = (uint8_t)(len - off);
-        if (n > LINK_TABLE_CHUNK) {
-            n = LINK_TABLE_CHUNK;
+    uint16_t len = tune_blob_len(t);
+    for (uint16_t off = 0; off < len; off = (uint16_t)(off + LINK_TABLE_VALS)) {
+        uint16_t n = (uint16_t)(len - off);
+        if (n > LINK_TABLE_VALS) {
+            n = LINK_TABLE_VALS;
         }
         pl[0] = id;
-        pl[1] = off;
-        for (uint8_t i = 0; i < n; i++) {
-            pl[2 + i] = page_buf[tune_blob_offset(t, (uint8_t)(off + i))];
+        pl[1] = (uint8_t)off;
+        pl[2] = (uint8_t)(off >> 8);
+        for (uint16_t i = 0; i < n; i++) {
+            link_put_s16(pl + LINK_TABLE_HDR + i * 2u, vals[off + i]);
         }
-        gb_send(LINK_T_TABLE, pl, (uint8_t)(2 + n));
+        gb_send(LINK_T_TABLE, pl, (uint8_t)(LINK_TABLE_HDR + n * 2u));
     }
     send_ack(LINK_C_READ, id, 0, TUNE_OK, 0);
 }
 
-static void do_write(uint8_t id, uint8_t cell, uint8_t val, bool verify) {
-    const tune_table_t *t = tune_get(id);
+static void do_write(uint8_t id, uint8_t cell, int16_t val, bool verify) {
+    const tune_table_t *t = tune_get(ecu_type, id);
     if (!t) {
         send_ack(LINK_C_WRITE, id, cell, TUNE_E_TABLE, 0);
         return;
     }
-    if (page_cached != t->page_cmd && !read_page(t)) {
+    if (cell >= tune_cells(t)) {
+        send_ack(LINK_C_WRITE, id, cell, TUNE_E_CELL, 0);
+        return;
+    }
+    if (vals_id != id && !load_table(id, t)) {
         send_ack(LINK_C_WRITE, id, cell, TUNE_E_ECU, 0);
         return;
     }
-    uint8_t st = tune_check_write(id, cell, 0, 0);
-    if (st == TUNE_E_TABLE || st == TUNE_E_CELL) {
-        send_ack(LINK_C_WRITE, id, cell, st, 0);
-        return;
-    }
-    uint8_t off = tune_cell_offset(t, cell);
-    uint8_t cur = page_buf[off];
-    st = tune_check_write(id, cell, cur, val);
+    int16_t cur = vals[cell];
+    uint8_t st = tune_check_write(t, cell, cur, val);
     if (st != TUNE_OK) {
         send_ack(LINK_C_WRITE, id, cell, st, cur);
         return;
     }
-    const uint8_t w[] = {MS1_CMD_PAGE, t->page_cmd, 'W', off, val};
-    uart_write_blocking(ECU_UART, w, sizeof w);
-    if (!verify) {
-        page_buf[off] = val;
-        send_ack(LINK_C_WRITE, id, cell, TUNE_OK, val);
-        return;
-    }
-    if (!read_page(t)) {
+    if (!write_elem(t, cell, val)) {
+        vals_id = NO_PAGE;
         send_ack(LINK_C_WRITE, id, cell, TUNE_E_ECU, cur);
         return;
     }
-    printf("write: table %u cell %u %u -> %u\n", id, cell, cur, page_buf[off]);
-    send_ack(LINK_C_WRITE, id, cell, page_buf[off] == val ? TUNE_OK : TUNE_E_VERIFY, page_buf[off]);
-}
-
-static void do_burn(uint8_t id) {
-    const tune_table_t *t = tune_get(id);
-    if (!t) {
-        send_ack(LINK_C_BURN, id, 0, TUNE_E_TABLE, 0);
+    vals[cell] = val;
+    if (!verify) {
+        send_ack(LINK_C_WRITE, id, cell, TUNE_OK, val);
         return;
     }
-    const uint8_t b[] = {MS1_CMD_PAGE, t->page_cmd, 'B'};
-    uart_write_blocking(ECU_UART, b, sizeof b);
+    int16_t got;
+    if (!read_back(t, cell, &got)) {
+        vals_id = NO_PAGE;
+        send_ack(LINK_C_WRITE, id, cell, TUNE_E_ECU, cur);
+        return;
+    }
+    vals[cell] = got;
+    printf("write: table %u cell %u %d -> %d\n", id, cell, cur, got);
+    send_ack(LINK_C_WRITE, id, cell, got == val ? TUNE_OK : TUNE_E_VERIFY, got);
+}
+
+static bool burn_page(uint8_t page) {
+    if (ecu_type == LINK_ECU_MS1) {
+        const uint8_t b[] = {MS1_CMD_PAGE, page, 'B'};
+        uart_write_blocking(ECU_UART, b, sizeof b);
+        page_cached = NO_PAGE;
+    } else {
+        uint8_t req[MS2_FRAME_MAX];
+        const uint8_t *d;
+        size_t l;
+        if (!ms2_transact(req, ms2_req_burn(req, page), &d, &l)) {
+            return false;
+        }
+    }
     absolute_time_t end = make_timeout_time_ms(BURN_WAIT_MS);
     while (!time_reached(end)) {
         gb_pump();
     }
-    page_cached = NO_PAGE;
-    printf("burn: table %u\n", id);
-    send_ack(LINK_C_BURN, id, 0, TUNE_OK, 0);
+    return true;
+}
+
+static void do_burn(uint8_t id) {
+    const tune_table_t *t = tune_get(ecu_type, id);
+    uint8_t done[TUNE_COUNT];
+    uint8_t ndone = 0;
+    bool ok = true;
+    if (!t) {
+        send_ack(LINK_C_BURN, id, 0, TUNE_E_TABLE, 0);
+        return;
+    }
+    for (uint16_t i = 0; ok && i < tune_cells(t); i++) {
+        uint8_t page;
+        uint16_t off;
+        uint8_t type;
+        uint8_t k;
+        tune_loc(t, i, &page, &off, &type);
+        for (k = 0; k < ndone && done[k] != page; k++) {
+        }
+        if (k == ndone && ndone < TUNE_COUNT) {
+            done[ndone++] = page;
+            ok = burn_page(page);
+        }
+    }
+    printf("burn: table %u %s\n", id, ok ? "ok" : "failed");
+    send_ack(LINK_C_BURN, id, 0, ok ? TUNE_OK : TUNE_E_ECU, 0);
 }
 
 static void do_ecu(uint8_t type) {
@@ -517,14 +654,14 @@ static void handle_cmd(void) {
         do_time(cmd);
         return;
     }
-    if (!ecu_ok || ecu_type != LINK_ECU_MS1) {
+    if (!ecu_ok) {
         send_ack(type, len ? cmd[0] : 0, len > 1 ? cmd[1] : 0, TUNE_E_ECU, 0);
         return;
     }
     if (type == LINK_C_READ && len == 1) {
         do_read(cmd[0]);
-    } else if (type == LINK_C_WRITE && (len == 3 || len == LINK_WRITE_LEN)) {
-        do_write(cmd[0], cmd[1], cmd[2], len == 3 || (cmd[3] & LINK_WF_VERIFY));
+    } else if (type == LINK_C_WRITE && len == LINK_WRITE_LEN) {
+        do_write(cmd[0], cmd[1], link_get_s16(cmd + 2), cmd[4] & LINK_WF_VERIFY);
     } else if (type == LINK_C_BURN && len == 1) {
         do_burn(cmd[0]);
     }
