@@ -6,21 +6,25 @@
 #include "link.h"
 #include "tdata.h"
 
-#define RX_SIZE 64u
-#define RX_MASK (RX_SIZE - 1u)
+#define RX_FULL 255u
 #define SC_ARM (SIOF_XFER_START | SIOF_CLOCK_EXT)
 
-static volatile uint8_t rx_buf[RX_SIZE];
+static volatile uint8_t rx_buf[256];
 static volatile uint8_t rx_head;
-static uint8_t rx_tail;
+static volatile uint8_t rx_lost;
+static volatile uint8_t rx_tail;
 static link_parser_t parser;
 static uint8_t tx_buf[LINK_FRAME_MAX];
 static volatile uint8_t tx_pos;
 static volatile uint8_t tx_len;
 
 static void sio_isr(void) {
-    rx_buf[rx_head & RX_MASK] = SB_REG;
-    rx_head++;
+    if ((uint8_t)(rx_head - rx_tail) == RX_FULL) {
+        rx_lost = 1;
+    } else {
+        rx_buf[rx_head] = SB_REG;
+        rx_head++;
+    }
     if (tx_pos < tx_len) {
         SB_REG = tx_buf[tx_pos];
         tx_pos++;
@@ -106,8 +110,15 @@ static void on_frame(void) {
 
 void linkrx_poll(void) {
     uint8_t b;
+    if (rx_lost) {
+        CRITICAL {
+            rx_tail = rx_head;
+            rx_lost = 0;
+        }
+        link_parser_reset(&parser);
+    }
     while (rx_tail != rx_head) {
-        b = rx_buf[rx_tail & RX_MASK];
+        b = rx_buf[rx_tail];
         rx_tail++;
         if (link_feed(&parser, b)) {
             on_frame();
