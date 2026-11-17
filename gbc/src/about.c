@@ -10,15 +10,18 @@
 #include "sound.h"
 #include "tiles.h"
 #include "ui.h"
+#include "version.h"
 
 void about_enter(void) {
     ui_clear();
     hdr_draw("ABOUT");
     ui_text(1, 3, "MEGABOY", PAL_TEXT);
-    ui_text(13, 3, "V0.1.0", PAL_DIM);
+    ui_text((uint8_t)(19u - (sizeof MB_VERSION - 1u)), 3, MB_VERSION, PAL_DIM);
     ui_text(1, 5, "LINK", PAL_DIM);
     ui_text(1, 7, "ECU", PAL_DIM);
     ui_text(1, 9, "UPTIME", PAL_DIM);
+    ui_text(1, 11, "COMMIT", PAL_DIM);
+    ui_text(8, 11, MB_COMMIT, PAL_TEXT);
     ui_text(1, 13, "GITHUB.COM/", PAL_BLUE);
     ui_text(1, 14, "REYNICO/MEGABOY", PAL_BLUE);
     ui_divider(15);
