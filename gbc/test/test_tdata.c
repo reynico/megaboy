@@ -26,6 +26,7 @@ static int writes;
 static int verifies;
 static int burns;
 static int drop_acks;
+static int fail_verify;
 
 uint8_t linkrx_send(uint8_t type, const uint8_t *payload, uint8_t len) {
     last_type = type;
@@ -73,10 +74,15 @@ static void bridge(void) {
         if (st == TUNE_OK) {
             st = tune_check_order(t, ram, cell, v);
         }
-        if (st == TUNE_OK) {
+    if (st == TUNE_OK) {
+            int16_t old = ram[cell];
             ram[cell] = v;
             writes++;
             verifies += (last_pl[4] & LINK_WF_VERIFY) != 0;
+            if (fail_verify && (last_pl[4] & LINK_WF_VERIFY)) {
+                ack(LINK_C_WRITE, last_pl[0], cell, TUNE_E_ECU, old);
+                return;
+            }
         }
         ack(LINK_C_WRITE, last_pl[0], cell, st, ram[cell]);
     } else if (last_type == LINK_C_BURN) {
@@ -101,6 +107,7 @@ static void setup(uint8_t e, uint8_t id, int16_t base) {
     ecu = e;
     bridge_on = 1;
     drop_acks = 0;
+    fail_verify = 0;
     writes = 0;
     verifies = 0;
     burns = 0;
@@ -270,6 +277,20 @@ static void test_lost_ack(void) {
     CHECK(ram[5] == o && !td_dirty() && burns == 0);
 }
 
+static void test_failed_readback(void) {
+    setup(TUNE_ECU_MS1, TUNE_VE1, 40);
+    int16_t o = ram[5];
+    fail_verify = 1;
+    CHECK(td_set(5, (int16_t)(o + 1)));
+    run(10);
+    CHECK(ram[5] == o + 1 && td.err == TUNE_E_ECU && td.unsure);
+    CHECK(!td_set(6, 50));
+    fail_verify = 0;
+    td_resync();
+    run(2);
+    CHECK(!td.unsure && td.blob[5] == o + 1 && td.orig[5] == o && td_dirty());
+}
+
 static void test_no_table(void) {
     td_load(0, TUNE_VE1);
     CHECK(td.state == TD_ERROR && td.err == TUNE_E_TABLE);
@@ -296,6 +317,7 @@ int main(void) {
     test_table_bounds();
     test_burn_while_writing();
     test_lost_ack();
+    test_failed_readback();
     test_no_table();
     test_timeout();
     if (fails) {

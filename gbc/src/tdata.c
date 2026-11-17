@@ -212,6 +212,9 @@ void td_on_ack(const uint8_t *p) {
             disc_from = (uint16_t)(cell + 1u);
             td.tgt_cell = TD_NO_CELL;
         } else if (st != TUNE_OK) {
+            if (st == TUNE_E_ECU) {
+                td.unsure = 1;
+            }
             td.err = st;
             td.tgt_cell = TD_NO_CELL;
             td.discarding = 0;
