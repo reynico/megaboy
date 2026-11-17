@@ -282,6 +282,7 @@ static bool ms1_cmd(const uint8_t *c, size_t clen, uint8_t *out, size_t n) {
     }
     flush_rx();
     uart_write_blocking(ECU_UART, c, clen);
+    uart_tx_wait_blocking(ECU_UART);
     absolute_time_t deadline = make_timeout_time_us(MS1_TIMEOUT_US);
     size_t got = 0;
     while (got < n && !time_reached(deadline)) {
@@ -481,7 +482,7 @@ static bool write_elem(const tune_table_t *t, uint16_t cell, int16_t v) {
     tune_loc(t, cell, &page, &off, &type);
     if (ecu_type == LINK_ECU_MS1) {
         const uint8_t w[] = {MS1_CMD_PAGE, page, 'W', (uint8_t)off, (uint8_t)v};
-        uart_write_blocking(ECU_UART, w, sizeof w);
+        ms1_cmd(w, sizeof w, 0, 0);
         page_cached = NO_PAGE;
         return true;
     }
@@ -587,7 +588,7 @@ static void do_write(uint8_t id, uint8_t cell, int16_t val, bool verify) {
 static bool burn_page(uint8_t page) {
     if (ecu_type == LINK_ECU_MS1) {
         const uint8_t b[] = {MS1_CMD_PAGE, page, 'B'};
-        uart_write_blocking(ECU_UART, b, sizeof b);
+        ms1_cmd(b, sizeof b, 0, 0);
         page_cached = NO_PAGE;
     } else {
         uint8_t req[MS2_FRAME_MAX];
