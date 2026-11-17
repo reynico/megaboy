@@ -50,6 +50,22 @@ size_t ms2_req_read(uint8_t *out, uint8_t table, uint16_t off, uint16_t cnt) {
     return ms2_frame(out, p, sizeof p);
 }
 
+size_t ms2_req_write(uint8_t *out, uint8_t table, uint16_t off, const uint8_t *data, uint8_t n) {
+    uint8_t p[7 + 2] = {'w', MS2_CAN_ID, table};
+    if (n == 0 || n > 2) {
+        return 0;
+    }
+    put16(p + 3, off);
+    put16(p + 5, n);
+    memcpy(p + 7, data, n);
+    return ms2_frame(out, p, (size_t)(7 + n));
+}
+
+size_t ms2_req_burn(uint8_t *out, uint8_t table) {
+    const uint8_t p[3] = {'b', MS2_CAN_ID, table};
+    return ms2_frame(out, p, sizeof p);
+}
+
 void ms2_parser_reset(ms2_parser_t *p) {
     p->n = 0;
     p->want = 0;

@@ -31,6 +31,8 @@ typedef struct {
 uint32_t ms2_crc32(const uint8_t *d, size_t n);
 size_t ms2_frame(uint8_t *out, const uint8_t *payload, size_t n);
 size_t ms2_req_read(uint8_t *out, uint8_t table, uint16_t off, uint16_t cnt);
+size_t ms2_req_write(uint8_t *out, uint8_t table, uint16_t off, const uint8_t *data, uint8_t n);
+size_t ms2_req_burn(uint8_t *out, uint8_t table);
 
 void ms2_parser_reset(ms2_parser_t *p);
 ms2_pstat_t ms2_parser_feed(ms2_parser_t *p, uint8_t b, const uint8_t **payload, size_t *len);

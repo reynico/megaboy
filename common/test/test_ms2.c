@@ -71,6 +71,20 @@ static void test_parse_decode(void) {
     CHECK(rt.afr_x10 == 128);
 }
 
+static void test_write_burn(void) {
+    uint8_t out[MS2_FRAME_MAX];
+    const uint8_t v2[] = {0xff, 0x9c};
+    const uint8_t v1[] = {0x41};
+    const uint8_t w2[] = {0x00, 0x09, 'w', 0x00, 0x0a, 0x00, 0x10, 0x00, 0x02, 0xff, 0x9c, 0xdf, 0x42, 0x84, 0x0d};
+    const uint8_t w1[] = {0x00, 0x08, 'w', 0x00, 0x09, 0x00, 0x05, 0x00, 0x01, 0x41, 0xcb, 0xa6, 0xa6, 0x5d};
+    const uint8_t b[] = {0x00, 0x03, 'b', 0x00, 0x05, 0xc4, 0x78, 0x32, 0xd3};
+    CHECK(ms2_req_write(out, 0x0a, 16, v2, 2) == sizeof w2 && memcmp(out, w2, sizeof w2) == 0);
+    CHECK(ms2_req_write(out, 0x09, 5, v1, 1) == sizeof w1 && memcmp(out, w1, sizeof w1) == 0);
+    CHECK(ms2_req_write(out, 0x09, 5, v1, 0) == 0);
+    CHECK(ms2_req_write(out, 0x09, 5, v1, 3) == 0);
+    CHECK(ms2_req_burn(out, 0x05) == sizeof b && memcmp(out, b, sizeof b) == 0);
+}
+
 static void test_bad_crc(void) {
     uint8_t fr[MS2_FRAME_MAX];
     size_t n = sample_frame(fr);
@@ -113,6 +127,7 @@ int main(void) {
     test_requests();
     test_parse_decode();
     test_bad_crc();
+    test_write_burn();
     test_bad_len();
     test_vacuum();
     if (fails) {
