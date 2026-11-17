@@ -239,6 +239,13 @@ static void do_write(uint8_t id, uint8_t cell, int16_t val, bool verify) {
     tune_loc(t, cell, &page, &off, &type);
     int16_t cur = page_buf[off];
     uint8_t st = tune_check_write(t, cell, cur, val);
+    if (st == TUNE_OK && t->norder) {
+        int16_t v[4];
+        for (uint8_t i = 0; i < tune_cells(t) && i < 4; i++) {
+            v[i] = elem(t, i);
+        }
+        st = tune_check_order(t, v, cell, val);
+    }
     if (st != TUNE_OK) {
         send_ack(LINK_C_WRITE, id, cell, st, cur);
         return;
