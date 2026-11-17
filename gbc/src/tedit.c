@@ -239,6 +239,8 @@ static const char *err_text(uint8_t e) {
         return "NO ECU ANSWER";
     case TUNE_E_TABLE:
         return "UNKNOWN TABLE";
+    case TUNE_E_ORDER:
+        return "LIMIT ORDER";
     default:
         return "BAD REQUEST";
     }

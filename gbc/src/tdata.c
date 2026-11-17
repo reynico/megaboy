@@ -6,6 +6,7 @@
 #define TIMEOUT_TICKS 30u
 #define MAX_RETRIES 2u
 #define NO_CMD 0u
+#define DISC_TRIES 8u
 
 tdata_t td;
 
@@ -15,6 +16,8 @@ static uint8_t pend_len;
 static uint8_t pend_age;
 static uint8_t pend_tries;
 static uint16_t got;
+static uint16_t disc_from;
+static uint8_t disc_tries;
 
 static void send_pending(void) {
     if (linkrx_send(pend_cmd, pend_pl, pend_len)) {
@@ -89,6 +92,11 @@ uint8_t td_set(uint16_t cell, int16_t val) {
     if (val > td.t->max) {
         val = td.t->max;
     }
+    if (tune_check_order(td.t, td.blob, cell, val) != TUNE_OK) {
+        td.err = TUNE_E_ORDER;
+        td.changed = 1;
+        return 0;
+    }
     td.tgt_cell = cell;
     td.tgt_val = val;
     td.err = TUNE_OK;
@@ -108,6 +116,8 @@ void td_discard(void) {
     if (td.state == TD_READY) {
         td.discarding = 1;
         td.changed = 1;
+        disc_from = 0;
+        disc_tries = 0;
     }
 }
 
@@ -166,7 +176,11 @@ void td_on_ack(const uint8_t *p) {
         if (cell < tune_cells(td.t)) {
             td.blob[cell] = v;
         }
-        if (st != TUNE_OK) {
+        if (st == TUNE_E_ORDER && td.discarding && disc_tries < DISC_TRIES) {
+            disc_tries++;
+            disc_from = (uint16_t)(cell + 1u);
+            td.tgt_cell = TD_NO_CELL;
+        } else if (st != TUNE_OK) {
             td.err = st;
             td.tgt_cell = TD_NO_CELL;
             td.discarding = 0;
@@ -197,9 +211,11 @@ static int16_t step_to(int16_t cur, int16_t want) {
 }
 
 static void next_discard(void) {
+    uint16_t k;
     uint16_t i;
     uint16_t n = tune_cells(td.t);
-    for (i = 0; i < n; i++) {
+    for (k = 0; k < n; k++) {
+        i = (uint16_t)((disc_from + k) % n);
         if (td.blob[i] != td.orig[i]) {
             td.tgt_cell = i;
             td.tgt_val = td.orig[i];

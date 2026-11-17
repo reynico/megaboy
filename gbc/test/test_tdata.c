@@ -67,6 +67,9 @@ static void bridge(void) {
         int16_t v = link_get_s16(last_pl + 2);
         uint8_t st = last_len == LINK_WRITE_LEN ? tune_check_write(t, cell, ram[cell], v) : TUNE_E_TABLE;
         if (st == TUNE_OK) {
+            st = tune_check_order(t, ram, cell, v);
+        }
+        if (st == TUNE_OK) {
             ram[cell] = v;
             writes++;
             verifies += (last_pl[4] & LINK_WF_VERIFY) != 0;
@@ -172,6 +175,46 @@ static void test_retarget_needs_verify(void) {
     CHECK(verifies == 1 && !td_busy());
 }
 
+static void set_limits(int16_t soft, int16_t hard, int16_t launch, int16_t flat) {
+    ram[0] = soft;
+    ram[1] = hard;
+    ram[2] = launch;
+    ram[3] = flat;
+    memcpy(flash, ram, sizeof ram);
+    writes = 0;
+    td_load(TUNE_ECU_MS1, TUNE_LIMITS);
+    run(2);
+}
+
+static void test_order(void) {
+    ecu = TUNE_ECU_MS1;
+    bridge_on = 1;
+    set_limits(60, 70, 40, 65);
+    CHECK(!td_set(0, 71));
+    run(10);
+    CHECK(td.err == TUNE_E_ORDER && ram[0] == 60 && writes == 0 && !td_busy());
+    CHECK(td_set(0, 70));
+    run(10);
+    CHECK(ram[0] == 70 && td.err == TUNE_OK);
+}
+
+static void test_discard_order(void) {
+    ecu = TUNE_ECU_MS1;
+    bridge_on = 1;
+    set_limits(60, 70, 40, 65);
+    td_set(0, 50);
+    run(10);
+    td_set(3, 55);
+    run(10);
+    td_set(1, 56);
+    run(10);
+    CHECK(ram[0] == 50 && ram[1] == 56 && ram[3] == 55 && td.err == TUNE_OK);
+    td_discard();
+    run(40);
+    CHECK(ram[0] == 60 && ram[1] == 70 && ram[3] == 65);
+    CHECK(!td.discarding && !td_dirty() && td.err == TUNE_OK);
+}
+
 static void test_limits(void) {
     setup(TUNE_ECU_MS1, TUNE_VE1, 40);
     td_set(0, 255);
@@ -201,6 +244,8 @@ int main(void) {
     test_discard();
     test_retarget_needs_verify();
     test_limits();
+    test_order();
+    test_discard_order();
     test_no_table();
     test_timeout();
     if (fails) {
