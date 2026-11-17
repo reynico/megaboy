@@ -51,6 +51,9 @@
 #define BURN_WAIT_MS 200
 #define NO_PAGE 0xff
 #define MS2_READ_MAX 256u
+#define MS2_CFG_TABLE 0x04u
+#define MS2_VE_SIZE_OFF 997u
+#define MS2_VE_12X12 0x04u
 
 #define CFG_OFFSET (PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE)
 #define CFG_MAGIC0 'M'
@@ -74,6 +77,7 @@ static uint8_t page_buf[MS1_PAGE_LEN];
 static uint8_t page_cached = NO_PAGE;
 static int16_t vals[TUNE_BLOB_MAX];
 static uint8_t vals_id = NO_PAGE;
+static bool ms2_ve16;
 static uint8_t raw[TUNE_BLOB_MAX * 2u];
 static uint8_t clk_state;
 static char sig[MS1_SIG_LEN + 1];
@@ -359,6 +363,23 @@ static bool ms1_connect(void) {
     return true;
 }
 
+static bool ms2_read(uint8_t page, uint16_t off, uint16_t cnt, uint8_t *out) {
+    uint8_t req[MS2_FRAME_MAX];
+    while (cnt) {
+        uint16_t n = cnt > MS2_READ_MAX ? MS2_READ_MAX : cnt;
+        const uint8_t *d;
+        size_t l;
+        if (!ms2_transact(req, ms2_req_read(req, page, off, n), &d, &l) || l != n) {
+            return false;
+        }
+        memcpy(out, d, n);
+        out += n;
+        off = (uint16_t)(off + n);
+        cnt = (uint16_t)(cnt - n);
+    }
+    return true;
+}
+
 static bool ms2_connect(void) {
     uint8_t req[MS2_FRAME_MAX];
     size_t n = ms2_req_read(req, MS2_TABLE_SIG, 0, MS2_SIG_LEN);
@@ -373,6 +394,9 @@ static bool ms2_connect(void) {
     }
     printf("signature: %s\n", MS2_SIG);
     snprintf(sig, sizeof sig, "%s", MS2_SIG);
+    uint8_t ve_cfg;
+    ms2_ve16 = ms2_read(MS2_CFG_TABLE, MS2_VE_SIZE_OFF, 1, &ve_cfg) && !(ve_cfg & MS2_VE_12X12);
+    printf("ve table: %s\n", ms2_ve16 ? "16x16" : "not 16x16, editing off");
     return true;
 }
 
@@ -416,22 +440,6 @@ static bool ms1_read_page(uint8_t page) {
     return true;
 }
 
-static bool ms2_read(uint8_t page, uint16_t off, uint16_t cnt, uint8_t *out) {
-    uint8_t req[MS2_FRAME_MAX];
-    while (cnt) {
-        uint16_t n = cnt > MS2_READ_MAX ? MS2_READ_MAX : cnt;
-        const uint8_t *d;
-        size_t l;
-        if (!ms2_transact(req, ms2_req_read(req, page, off, n), &d, &l) || l != n) {
-            return false;
-        }
-        memcpy(out, d, n);
-        out += n;
-        off = (uint16_t)(off + n);
-        cnt = (uint16_t)(cnt - n);
-    }
-    return true;
-}
 
 static bool load_elems(const tune_table_t *t, uint16_t first, uint16_t count) {
     uint8_t page;
@@ -513,8 +521,15 @@ static bool read_back(const tune_table_t *t, uint16_t cell, int16_t *v) {
     return true;
 }
 
+static const tune_table_t *table(uint8_t id) {
+    if (ecu_type == LINK_ECU_MS2 && id == TUNE_VE1 && !ms2_ve16) {
+        return 0;
+    }
+    return tune_get(ecu_type, id);
+}
+
 static void do_read(uint8_t id) {
-    const tune_table_t *t = tune_get(ecu_type, id);
+    const tune_table_t *t = table(id);
     uint8_t pl[LINK_TABLE_HDR + LINK_TABLE_VALS * 2u];
     if (!t) {
         send_ack(LINK_C_READ, id, 0, TUNE_E_TABLE, 0);
@@ -542,7 +557,7 @@ static void do_read(uint8_t id) {
 }
 
 static void do_write(uint8_t id, uint8_t cell, int16_t val, bool verify) {
-    const tune_table_t *t = tune_get(ecu_type, id);
+    const tune_table_t *t = table(id);
     if (!t) {
         send_ack(LINK_C_WRITE, id, cell, TUNE_E_TABLE, 0);
         return;
@@ -606,7 +621,7 @@ static bool burn_page(uint8_t page) {
 }
 
 static void do_burn(uint8_t id) {
-    const tune_table_t *t = tune_get(ecu_type, id);
+    const tune_table_t *t = table(id);
     uint8_t done[TUNE_COUNT];
     uint8_t ndone = 0;
     bool ok = true;
