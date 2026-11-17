@@ -107,10 +107,8 @@ def main() -> int:
             trpm.append(int(round(max(vals) / 100)))
     needle = []
     for i in range(NEEDLE_STEPS):
-        rpm = min(i * 64, RPM_MAX)
-        for r in NEEDLE_R:
-            x, y = point(rpm, r)
-            needle += [int(round(x - CX)), int(round(y - CY))]
+        a = angle(min(i * 64, RPM_MAX))
+        needle += [int(round(127 * math.cos(a))), int(round(-127 * math.sin(a)))]
 
     def arr(vals, per=16, fmt="0x{:02x}"):
         return ",\n    ".join(", ".join(fmt.format(v) for v in vals[i:i + per]) for i in range(0, len(vals), per))
@@ -129,7 +127,9 @@ def main() -> int:
         "",
         f"const uint8_t gauge_rpm100[GAUGE_W * GAUGE_H] = {{\n    {arr(trpm, COL1 - COL0, '{:3d}')},\n}};",
         "",
-        f"const int8_t gauge_needle[GAUGE_STEPS * GAUGE_DOTS * 2] = {{\n    {arr(needle, 18, '{:3d}')},\n}};",
+        f"const int8_t gauge_dir[GAUGE_STEPS * 2] = {{\n    {arr(needle, 18, '{:4d}')},\n}};",
+        "",
+        f"const uint8_t gauge_dot_r[GAUGE_DOTS] = {{{', '.join(str(r) for r in NEEDLE_R)}}};",
         "",
     ]
     Path(sys.argv[1]).write_text("\n".join(lines))
@@ -145,7 +145,8 @@ def main() -> int:
         "extern const uint8_t gauge_tiles[GAUGE_TILE_COUNT * 16];\n"
         "extern const uint8_t gauge_map[GAUGE_W * GAUGE_H];\n"
         "extern const uint8_t gauge_rpm100[GAUGE_W * GAUGE_H];\n"
-        "extern const int8_t gauge_needle[GAUGE_STEPS * GAUGE_DOTS * 2];\n"
+        "extern const int8_t gauge_dir[GAUGE_STEPS * 2];\n"
+        "extern const uint8_t gauge_dot_r[GAUGE_DOTS];\n"
     )
     print(f"{len(tiles)} tiles", file=sys.stderr)
     return 0

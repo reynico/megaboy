@@ -17,4 +17,5 @@
 extern const uint8_t gauge_tiles[GAUGE_TILE_COUNT * 16];
 extern const uint8_t gauge_map[GAUGE_W * GAUGE_H];
 extern const uint8_t gauge_rpm100[GAUGE_W * GAUGE_H];
-extern const int8_t gauge_needle[GAUGE_STEPS * GAUGE_DOTS * 2];
+extern const int8_t gauge_dir[GAUGE_STEPS * 2];
+extern const uint8_t gauge_dot_r[GAUGE_DOTS];

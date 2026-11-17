@@ -80,11 +80,18 @@ void gauge_enter(void) {
     SHOW_SPRITES;
 }
 
+static int8_t scale(int8_t d, uint8_t r) {
+    int16_t v = (int16_t)d * r;
+    return (int8_t)((v + (v < 0 ? -64 : 64)) / 128);
+}
+
 static void draw_needle(uint8_t step) {
-    const int8_t *p = &gauge_needle[(uint16_t)step * (GAUGE_DOTS * 2u)];
+    int8_t dx = gauge_dir[step * 2u];
+    int8_t dy = gauge_dir[step * 2u + 1u];
     uint8_t i;
-    for (i = 0; i < GAUGE_DOTS; i++, p += 2) {
-        move_sprite(i, (uint8_t)(GAUGE_CX + SPR_OFF_X + p[0]), (uint8_t)(GAUGE_CY + SPR_OFF_Y + p[1]));
+    for (i = 0; i < GAUGE_DOTS; i++) {
+        uint8_t r = gauge_dot_r[i];
+        move_sprite(i, (uint8_t)(GAUGE_CX + SPR_OFF_X + scale(dx, r)), (uint8_t)(GAUGE_CY + SPR_OFF_Y + scale(dy, r)));
     }
 }
 
