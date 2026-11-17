@@ -195,26 +195,57 @@ static void test_sync_under_load(void) {
     CHECK(syncs - before >= 4);
 }
 
-static void test_refused_command_keeps_state(void) {
-    reset();
-    drain();
+static void fill_queue(void) {
     for (int i = 0; i < ITEM_Q; i++) {
         item_t it = {IT_ROW, 0, 0, {{0}}};
         queue_try_add(&item_q, &it);
     }
-    for (int i = 0; i < PEND_MAX; i++) {
-        log_start("sig", 0, 1000);
-    }
+}
+
+static void test_redundant_commands(void) {
+    reset();
+    drain();
+    fill_queue();
+    log_start("sig", 0, 1000);
+    log_start("sig", 0, 1000);
+    log_start("sig", 0, 1000);
+    CHECK(pend_n == 1 && want == 1);
+    log_stop();
+    log_stop();
+    CHECK(pend_n == 2 && want == 0);
+}
+
+static void test_stop_always_accepted(void) {
+    reset();
+    drain();
+    log_start("sig", 0, 1000);
+    drain();
+    CHECK(state == LINK_LOG_REC);
+    fill_queue();
+    log_stop();
+    log_start("sig", 0, 1100);
+    log_stop();
+    log_start("sig", 0, 1200);
     CHECK(pend_n == PEND_MAX && want == 1);
     log_stop();
-    CHECK(want == 1);
+    CHECK(want == 0 && pend_n == PEND_MAX - 1);
+    log_start("sig", 0, 1300);
+    log_start("sig", 0, 1400);
+    CHECK(want == 1 && pend_n == PEND_MAX);
+    log_start("sig", 0, 1500);
+    CHECK(pend_n == PEND_MAX);
+    log_stop();
+    CHECK(want == 0);
+    drain();
+    CHECK(pend_n == 0 && state == LINK_LOG_IDLE && open_file == -1);
 }
 
 int main(void) {
     test_order_across_sessions();
     test_stop_with_full_queue();
     test_sync_under_load();
-    test_refused_command_keeps_state();
+    test_redundant_commands();
+    test_stop_always_accepted();
     if (fails) {
         fprintf(stderr, "%d failures\n", fails);
         return 1;

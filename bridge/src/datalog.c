@@ -303,8 +303,16 @@ void log_poll(void) {
 }
 
 static uint8_t push_cmd(const item_t *it) {
+    uint8_t last = pend_n ? pend[(pend_head + pend_n - 1u) % PEND_MAX].kind : (want ? IT_START : IT_STOP);
+    if (it->kind == last) {
+        return 1;
+    }
     if (pend_n == PEND_MAX) {
-        printf("error: log command refused\n");
+        if (it->kind == IT_STOP) {
+            pend_n--;
+            return 1;
+        }
+        printf("error: log start refused\n");
         return 0;
     }
     pend[(pend_head + pend_n) % PEND_MAX] = *it;
