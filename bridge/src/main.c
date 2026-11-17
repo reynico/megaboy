@@ -41,6 +41,7 @@
 #define PRINT_MS 500
 #define STATUS_MS 1000
 #define RETRY_MS 1000
+#define ECU_QUIET_MS 3000
 #define CLOCK_PRINT_S 10
 #define SD_PROBE_S 5
 #define MS1_TIMEOUT_US 400000
@@ -551,6 +552,9 @@ static void rtc_init(void) {
 }
 
 int main(void) {
+    gpio_init(ECU_TX_PIN);
+    gpio_set_dir(ECU_TX_PIN, GPIO_OUT);
+    gpio_put(ECU_TX_PIN, 1);
     stdio_init_all();
     gb_init();
     rtc_init();
@@ -567,7 +571,7 @@ int main(void) {
         uint32_t now = now_ms();
         ecu_rt_t rt;
 
-        if (ecu_type != LINK_ECU_NONE && !ecu_ok && now - last_try >= RETRY_MS) {
+        if (ecu_type != LINK_ECU_NONE && !ecu_ok && now >= ECU_QUIET_MS && now - last_try >= RETRY_MS) {
             last_try = now;
             ecu_ok = ecu_type == LINK_ECU_MS1 ? ms1_connect() : ms2_connect();
             errors = 0;
