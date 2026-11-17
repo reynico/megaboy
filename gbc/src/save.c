@@ -6,7 +6,7 @@
 #define SRAM ((uint8_t *)0xa000u)
 #define MAGIC0 'M'
 #define MAGIC1 'B'
-#define VERSION 4u
+#define VERSION 5u
 #define HDR 3u
 
 static uint8_t sum(const uint8_t *p, uint8_t n) {

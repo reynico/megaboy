@@ -31,6 +31,7 @@ static const item_t items[] = {
     {"ALARM SND", &app.set.alarm_snd, 0, 1, 1, K_ONOFF},
     {"KEY SND", &app.set.key_snd, 0, 1, 1, K_ONOFF},
     {"ECU", &app.set.ecu, 0, 2, 1, K_ECU},
+    {"ECU HZ", &app.set.ecu_hz, LINK_HZ_MIN, LINK_HZ_MAX, 10, K_INT},
     {"CLOCK", 0, 0, 0, 0, K_CLOCK},
 };
 #define ITEM_COUNT (sizeof items / sizeof items[0])

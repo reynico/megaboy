@@ -14,6 +14,7 @@ typedef struct {
     int16_t alarm_snd;
     int16_t key_snd;
     int16_t ecu;
+    int16_t ecu_hz;
 } settings_t;
 
 typedef struct {

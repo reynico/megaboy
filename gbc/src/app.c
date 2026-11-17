@@ -76,6 +76,7 @@ void app_init(void) {
     app.set.alarm_snd = 1;
     app.set.key_snd = 1;
     app.set.ecu = 0;
+    app.set.ecu_hz = LINK_HZ_DEFAULT;
     app.peak_x10 = 0;
     app.uptime_s = 0;
     app.blink = 0;

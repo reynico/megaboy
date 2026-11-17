@@ -64,9 +64,9 @@ static void on_status(void) {
     link_get_status(parser.buf, &st);
     app.ecu = st.ecu;
     app.ecu_state = st.state;
-    if (app.set.ecu && st.ecu != (uint8_t)app.set.ecu) {
-        uint8_t t = (uint8_t)app.set.ecu;
-        linkrx_send(LINK_C_ECU, &t, 1);
+    if ((app.set.ecu && st.ecu != (uint8_t)app.set.ecu) || st.hz != (uint8_t)app.set.ecu_hz) {
+        uint8_t p[LINK_ECU_LEN] = {(uint8_t)app.set.ecu, (uint8_t)app.set.ecu_hz};
+        linkrx_send(LINK_C_ECU, p, LINK_ECU_LEN);
     }
 }
 
