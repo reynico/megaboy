@@ -77,10 +77,6 @@ void td_resync(void) {
     start(LINK_C_READ, 1);
 }
 
-uint8_t td_busy(void) {
-    return pend_cmd != NO_CMD || td.tgt_cell != TD_NO_CELL || burn_req;
-}
-
 static uint8_t changed_cells(void) {
     uint16_t i;
     uint16_t n = tune_cells(td.t);
@@ -90,6 +86,18 @@ static uint8_t changed_cells(void) {
         }
     }
     return 0;
+}
+
+void td_open(uint8_t ecu, uint8_t id) {
+    if (td.loaded && td.ecu == ecu && (td.unsure || td.flash_unsure || changed_cells())) {
+        td_resync();
+        return;
+    }
+    td_load(ecu, id);
+}
+
+uint8_t td_busy(void) {
+    return pend_cmd != NO_CMD || td.tgt_cell != TD_NO_CELL || burn_req;
 }
 
 uint8_t td_dirty(void) {

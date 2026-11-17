@@ -61,7 +61,7 @@ void tunemenu_input(uint8_t pressed) {
         sel = (uint8_t)((sel + 1u) % TUNE_COUNT);
         draw_cursor();
     } else if ((pressed & J_A) && can_tune()) {
-        td_load(app.ecu, sel);
+        td_open(app.ecu, sel);
         screen_go(SCR_TEDIT);
     } else if (pressed & J_B) {
         screen_go(SCR_MENU);

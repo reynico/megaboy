@@ -33,6 +33,7 @@ extern tdata_t td;
 
 void td_load(uint8_t ecu, uint8_t id);
 void td_resync(void);
+void td_open(uint8_t ecu, uint8_t id);
 uint8_t td_busy(void);
 uint8_t td_dirty(void);
 int16_t td_value(uint16_t cell);

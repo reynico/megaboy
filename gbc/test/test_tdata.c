@@ -74,7 +74,7 @@ static void bridge(void) {
         if (st == TUNE_OK) {
             st = tune_check_order(t, ram, cell, v);
         }
-    if (st == TUNE_OK) {
+        if (st == TUNE_OK) {
             int16_t old = ram[cell];
             ram[cell] = v;
             writes++;
@@ -291,6 +291,26 @@ static void test_failed_readback(void) {
     CHECK(!td.unsure && td.blob[5] == o + 1 && td.orig[5] == o && td_dirty());
 }
 
+static void test_reopen_keeps_original(void) {
+    setup(TUNE_ECU_MS1, TUNE_VE1, 40);
+    int16_t o = ram[5];
+    drop_acks = 1;
+    td_set(5, (int16_t)(o + 1));
+    run(200);
+    CHECK(td.unsure);
+    drop_acks = 0;
+    td_open(TUNE_ECU_MS1, TUNE_ADV1);
+    run(2);
+    CHECK(td.id == TUNE_VE1 && td.state == TD_READY && !td.unsure);
+    CHECK(td.blob[5] == o + 1 && td.orig[5] == o && td_dirty());
+    td_discard();
+    run(20);
+    CHECK(ram[5] == o && !td_dirty());
+    td_open(TUNE_ECU_MS1, TUNE_ADV1);
+    run(2);
+    CHECK(td.id == TUNE_ADV1 && td.state == TD_READY);
+}
+
 static void test_lost_burn(void) {
     setup(TUNE_ECU_MS1, TUNE_VE1, 40);
     int16_t o = ram[5];
@@ -336,6 +356,7 @@ int main(void) {
     test_burn_while_writing();
     test_lost_ack();
     test_failed_readback();
+    test_reopen_keeps_original();
     test_lost_burn();
     test_no_table();
     test_timeout();
