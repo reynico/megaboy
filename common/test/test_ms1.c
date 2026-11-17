@@ -102,15 +102,19 @@ static void test_decode(void) {
 }
 
 static void test_restart(void) {
-    CHECK(!ecu_restarted(10, 10, 256));
-    CHECK(!ecu_restarted(10, 11, 256));
-    CHECK(!ecu_restarted(255, 0, 256));
-    CHECK(!ecu_restarted(254, 3, 256));
-    CHECK(ecu_restarted(100, 2, 256));
-    CHECK(ecu_restarted(10, 9, 256));
-    CHECK(!ecu_restarted(65535, 0, 65536));
-    CHECK(ecu_restarted(3000, 1, 65536));
-    CHECK(!ecu_restarted(3000, 3001, 65536));
+    CHECK(!ecu_restarted(10, 10, 256, 50));
+    CHECK(!ecu_restarted(10, 11, 256, 50));
+    CHECK(!ecu_restarted(255, 0, 256, 50));
+    CHECK(!ecu_restarted(254, 3, 256, 3000));
+    CHECK(ecu_restarted(100, 2, 256, 50));
+    CHECK(ecu_restarted(10, 9, 256, 50));
+    CHECK(ecu_restarted(200, 1, 256, 50));
+    CHECK(ecu_restarted(10, 14, 256, 50));
+    CHECK(!ecu_restarted(10, 14, 256, 2500));
+    CHECK(!ecu_restarted(65535, 0, 65536, 50));
+    CHECK(ecu_restarted(3000, 1, 65536, 50));
+    CHECK(ecu_restarted(40000, 1, 65536, 50));
+    CHECK(!ecu_restarted(3000, 3001, 65536, 50));
 }
 
 static void test_cold(void) {

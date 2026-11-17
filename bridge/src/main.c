@@ -80,6 +80,7 @@ static uint8_t vals_id = NO_PAGE;
 static bool ms2_ve16;
 static bool have_secs;
 static uint16_t last_secs;
+static uint32_t last_secs_ms;
 
 static void drop_cache(void) {
     vals_id = NO_PAGE;
@@ -764,12 +765,14 @@ int main(void) {
             last_poll = now;
             if (poll_rt(&rt)) {
                 errors = 0;
-                if (have_secs && ecu_restarted(last_secs, rt.secs, ecu_type == LINK_ECU_MS1 ? 256u : 65536u)) {
+                if (have_secs && ecu_restarted(last_secs, rt.secs, ecu_type == LINK_ECU_MS1 ? 256u : 65536u,
+                                               now - last_secs_ms)) {
                     printf("ecu restart detected\n");
                     drop_cache();
                 }
                 have_secs = true;
                 last_secs = rt.secs;
+                last_secs_ms = now;
                 send_rt(&rt);
                 log_row(&rt, now);
                 if (now - last_print >= PRINT_MS) {
