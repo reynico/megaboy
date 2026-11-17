@@ -556,6 +556,9 @@ static void do_write(uint8_t id, uint8_t cell, int16_t val, bool verify) {
     }
     int16_t cur = vals[cell];
     uint8_t st = tune_check_write(t, cell, cur, val);
+    if (st == TUNE_OK) {
+        st = tune_check_order(t, vals, cell, val);
+    }
     if (st != TUNE_OK) {
         send_ack(LINK_C_WRITE, id, cell, st, cur);
         return;
