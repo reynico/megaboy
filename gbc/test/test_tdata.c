@@ -57,7 +57,8 @@ static void bridge(void) {
         uint16_t len = tune_blob_len(t);
         uint8_t buf[LINK_TABLE_HDR + LINK_TABLE_VALS * 2u];
         for (uint16_t off = 0; off < len; off = (uint16_t)(off + LINK_TABLE_VALS)) {
-            uint16_t n = (uint16_t)(len - off < LINK_TABLE_VALS ? len - off : LINK_TABLE_VALS);
+            uint16_t rem = (uint16_t)(len - off);
+            uint16_t n = rem < LINK_TABLE_VALS ? rem : (uint16_t)LINK_TABLE_VALS;
             buf[0] = last_pl[0];
             buf[1] = (uint8_t)off;
             buf[2] = (uint8_t)(off >> 8);
