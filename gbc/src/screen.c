@@ -13,6 +13,7 @@
 #include "menu.h"
 #include "settings.h"
 #include "tedit.h"
+#include "track.h"
 #include "tunemenu.h"
 #include "warn.h"
 
@@ -28,9 +29,10 @@ static const screen_t screens[SCR_COUNT] = {
     {tedit_enter, tedit_tick, tedit_input},
     {clockset_enter, clockset_tick, clockset_input},
     {gauge_enter, gauge_tick, gauge_input},
+    {track_enter, track_tick, track_input},
 };
 
-static const uint8_t pages[] = {SCR_DASH, SCR_GAUGE, SCR_BOOST, SCR_LOG};
+static const uint8_t pages[] = {SCR_DASH, SCR_TRACK, SCR_GAUGE, SCR_BOOST, SCR_LOG};
 #define PAGE_COUNT (sizeof pages / sizeof pages[0])
 
 static uint8_t current;
