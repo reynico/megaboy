@@ -7,7 +7,6 @@
 #define T_BAR0 65u
 #define T_BAR_LEVELS 8u
 #define T_DOT 73u
-#define T_STRIPE 74u
 #define T_BIG 80u
 
 #define PAL_TEXT 0u

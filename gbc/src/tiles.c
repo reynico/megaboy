@@ -4,8 +4,8 @@
 
 #include "font.h"
 
-static const char big_chars[] = "0123456789.+-CWARNIG ";
-#define BIG_COUNT 21u
+static const char big_chars[] = "0123456789.+-CWARNIG!LFTOPS ";
+#define BIG_COUNT 28u
 
 uint8_t tile_small(char c) {
     uint8_t u = (uint8_t)c;
@@ -104,11 +104,6 @@ static void load_shapes(void) {
         tile[r * 2u + 1u] = (r >= 2u && r <= 5u) ? 0x3cu : 0u;
     }
     set_bkg_data(T_DOT, 1, tile);
-
-    for (r = 0; r < 16u; r++) {
-        tile[r] = (r >= 6u && r <= 9u) ? 0xffu : 0u;
-    }
-    set_bkg_data(T_STRIPE, 1, tile);
 }
 
 void tiles_load(void) {
