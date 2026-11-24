@@ -6,3 +6,9 @@ dependencies = ["pyserial>=3.5"]
 
 [tool.uv]
 package = false
+
+[dependency-groups]
+screens = [
+    "pillow>=13.0.0",
+    "pyboy>=2.9.0",
+]
