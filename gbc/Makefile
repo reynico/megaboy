@@ -26,7 +26,7 @@ build/version.h: FORCE
 $(ROM): $(SRC) src/font.c src/gauge_gfx.c $(wildcard src/*.h) ../common/link.h ../common/rtc.h ../common/tune.h \
 	build/version.h
 	@mkdir -p build
-	$(LCC) -I../common -Ibuild -Wm-yc -Wm-yt0x1B -Wm-ya1 -Wm-yn"MEGABOY" -o $@ $(SRC)
+	$(LCC) -I../common -Ibuild -Wl-j -Wm-yc -Wm-yt0x1B -Wm-ya1 -Wm-yn"MEGABOY" -o $@ $(SRC)
 
 test: src/font.c
 	@mkdir -p build
